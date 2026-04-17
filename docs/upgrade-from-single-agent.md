@@ -163,7 +163,7 @@ Your existing memory, lessons, and preferences can be kept:
 ### Can I keep my agent's personality?
 Yes. Edit `SOUL.md` and `IDENTITY.md` in your workspace. The Breaking Bad characters are the default product flavor, but visible names can be customized in generated configs if you want.
 
-### Do I need all 8 agents?
+### Do I need all 9 agents?
 No. Start with Heisenberg + 1-2 specialists. Add more when you need them.
 
 ### What if I use Claude Max, not API?

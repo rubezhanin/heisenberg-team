@@ -1,13 +1,11 @@
 # 🧪 Heisenberg Team
 
-> ⚠️ **Перед началом:** Замените `YOUR_USERNAME` на ваш GitHub username в командах клонирования.
-
-**Мультиагентная система из 8 AI-агентов, работающих как команда.** Построена на [OpenClaw](https://github.com/openclaw/openclaw). Вдохновлена Breaking Bad.
+**Мультиагентная система из 9 AI-агентов, работающих как команда.** Построена на [OpenClaw](https://github.com/openclaw/openclaw). Вдохновлена Breaking Bad.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![OpenClaw](https://img.shields.io/badge/Built%20with-OpenClaw-blue)](https://github.com/openclaw/openclaw)
-[![Agents](https://img.shields.io/badge/Agents-8-green)]()
-[![Skills](https://img.shields.io/badge/Skills-34-orange)]()
+[![Agents](https://img.shields.io/badge/Agents-9-green)]()
+[![Skills](https://img.shields.io/badge/Skills-35-orange)]()
 
 ---
 
@@ -122,7 +120,7 @@ graph TB
 
 ## Требования
 
-- [Node.js](https://nodejs.org/) v18+
+- [Node.js](https://nodejs.org/) v20+
 - [OpenClaw](https://github.com/openclaw/openclaw) (`npm install -g openclaw`)
 - API-ключ хотя бы одного LLM-провайдера (Anthropic, OpenAI, Google, DeepSeek)
 - Telegram-бот токен (опционально, для уведомлений через [@BotFather](https://t.me/BotFather))
@@ -131,7 +129,7 @@ graph TB
 
 | | Минимум | Рекомендовано |
 |---|---------|-----------------|
-| RAM | 2 GB | 4 GB (8 агентов) |
+| RAM | 2 GB | 4 GB (9 агентов) |
 | Диск | 500 MB | 2 GB (с логами/памятью) |
 | ОС | macOS 11+, Ubuntu 20.04+, Windows 11 (WSL2) | macOS 13+ или Ubuntu 22.04+ |
 | Node.js | 18.x | 20.x+ |
@@ -175,7 +173,7 @@ openclaw gateway start
 
 ```
 heisenberg-team/
-├── agents/          # 8 агентов, каждый со своими конфигами
+├── agents/          # 9 агентов (8 + watchdog)
 ├── skills/          # 34 общих скиллов
 ├── scripts/         # Утилиты
 ├── references/      # Конституция команды, стандарты

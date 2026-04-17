@@ -188,5 +188,5 @@ bash scripts/make.sh demo    # build a sample PDF
 | Python 3.9+ | all `.py` scripts | system |
 | `reportlab` | `render_body.py` | `pip install reportlab` |
 | `pypdf` | fill, merge, reformat | `pip install pypdf` |
-| Node.js 18+ | `render_cover.js` | system |
+| Node.js 20+ | `render_cover.js` | system |
 | `playwright` + Chromium | `render_cover.js` | `npm install -g playwright && npx playwright install chromium` |

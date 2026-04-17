@@ -137,7 +137,7 @@ Design tokens (`tokens.json`) flow from `palette.py` to every renderer — cover
 | Python 3.9+ | all `.py` scripts | system |
 | `reportlab` | `render_body.py` | `pip install reportlab` |
 | `pypdf` | fill, merge, reformat | `pip install pypdf` |
-| Node.js 18+ | `render_cover.js` | system |
+| Node.js 20+ | `render_cover.js` | system |
 | `playwright` + Chromium | `render_cover.js` | `npm install -g playwright && npx playwright install chromium` |
 
 ## License
@@ -211,7 +211,7 @@ Design tokens (color, typography, spacing) are written once by `palette.py` and 
 | Python 3.9+ | palette, cover, render_body, merge | system |
 | `reportlab` | Body page rendering | `pip install reportlab` |
 | `pypdf` | Merging PDFs | `pip install pypdf` |
-| Node.js 18+ | Cover rendering | system |
+| Node.js 20+ | Cover rendering | system |
 | `playwright` | Headless Chromium for cover | `npm install -g playwright && npx playwright install chromium` |
 
 Run `bash scripts/make.sh check` to verify everything at once.  

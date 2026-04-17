@@ -106,7 +106,7 @@ After the wizard, create the workspace and start:
 bash scripts/init-workspace.sh  # Create directories for all agents
 openclaw init                   # First time only — set LLM provider and API key
 openclaw gateway start          # Start the system
-openclaw status                 # Verify all 8 agents are active
+openclaw status                 # Verify all 9 agents are active
 ```
 
 Send a message to your Telegram bot to test. See [docs/first-task.md](docs/first-task.md) for a walkthrough.
@@ -206,7 +206,7 @@ For partial installs:
 bash scripts/smoke-test.sh --agents heisenberg,saul,walter
 ```
 
-You should see 8 agents:
+You should see 9 agents:
 
 | Agent Name | Character | Role |
 |-----------|-----------|------|
@@ -259,7 +259,7 @@ Edit `references/team-constitution.md` to change delegation rules and workflows.
 
 ## Multi-Agent Deployment
 
-This repository contains a full team of 8 AI agents. To deploy the complete team:
+This repository contains a full team of 9 AI agents. To deploy the complete team:
 
 1. See [Deploy Agents Guide](docs/deploy-agents.md) for step-by-step instructions
 2. Use `scripts/deploy-team.sh` for automated workspace setup

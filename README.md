@@ -1,13 +1,13 @@
 # 🧪 Heisenberg Team
 
-**A multi-agent system with 8 AI agents working as a team.** Built on [OpenClaw](https://github.com/openclaw/openclaw). Inspired by Breaking Bad.
+**A multi-agent system with 9 AI agents working as a team.** Built on [OpenClaw](https://github.com/openclaw/openclaw). Inspired by Breaking Bad.
 
-Release 2 adds better direct-message behavior, durable-memory rules, and updated OpenClaw operations.
+Production-ready: universal installer, multi-provider support, orchestration with visibility policy.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![OpenClaw](https://img.shields.io/badge/Built%20with-OpenClaw-blue)](https://github.com/openclaw/openclaw)
-[![Agents](https://img.shields.io/badge/Agents-8-green)]()
-[![Skills](https://img.shields.io/badge/Skills-34-orange)]()
+[![Agents](https://img.shields.io/badge/Agents-9-green)]()
+[![Skills](https://img.shields.io/badge/Skills-35-orange)]()
 
 ---
 
@@ -30,19 +30,19 @@ Release 2 adds better direct-message behavior, durable-memory rules, and updated
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) v18+
+- [Node.js](https://nodejs.org/) v20+
 - [OpenClaw](https://github.com/openclaw/openclaw) (`npm install -g openclaw`)
-- Auth for at least one LLM provider (Anthropic, OpenAI, OpenAI Codex, Google, DeepSeek, or local models)
+- Auth for at least one LLM provider (Anthropic, OpenAI, Google, DeepSeek, OpenRouter, or local models)
 - Telegram bot token (optional, for notifications via [@BotFather](https://t.me/BotFather))
 
 ### System Requirements
 
 | | Minimum | Recommended |
 |---|---------|-------------|
-| RAM | 2 GB | 4 GB (8 agents) |
+| RAM | 2 GB | 4 GB (9 agents) |
 | Disk | 500 MB | 2 GB (with logs/memory) |
 | OS | macOS 11+, Ubuntu 20.04+, Windows 11 (WSL2) | macOS 13+ or Ubuntu 22.04+ |
-| Node.js | 18.x | 20.x+ |
+| Node.js | 20.x+ | 20.x+ |
 | Network | Required (LLM API calls) | Broadband |
 
 ## What is this?
@@ -80,37 +80,38 @@ graph TB
     User["👤 You (Telegram)"]
     
     subgraph team["🧪 Heisenberg Team"]
-        HB["🧪 Heisenberg<br/>Boss & Coordinator<br/><i>Opus</i>"]
+        HB["🧪 Heisenberg<br/>Boss & Coordinator"]
         
-        subgraph specialists["Specialists"]
-            Saul["💼 Saul Goodman<br/>Producer<br/><i>Sonnet</i>"]
-            Walter["👨‍🔬 Walter White<br/>Tech Lead<br/><i>Sonnet</i>"]
-            Jesse["🎯 Jesse Pinkman<br/>Marketing<br/><i>Sonnet</i>"]
-            Skyler["💰 Skyler White<br/>Finance<br/><i>Sonnet</i>"]
-            Hank["🔫 Hank Schrader<br/>Security<br/><i>Sonnet</i>"]
-            Gus["🎯 Gus Fring<br/>Kaizen/Goals<br/><i>Sonnet</i>"]
-            Twins["👥 Salamanca Twins<br/>Research<br/><i>Sonnet</i>"]
+        subgraph visible["Visible Specialists"]
+            Saul["💼 Saul<br/>Producer"]
+            Walter["👨‍🔬 Walter<br/>Tech Lead"]
+            Jesse["🎯 Jesse<br/>Marketing"]
+        end
+
+        subgraph silent["Silent Specialists"]
+            Skyler["💰 Skyler<br/>Finance"]
+            Hank["🔫 Hank<br/>Security"]
+            Gus["🎯 Gus<br/>Kaizen"]
+            Twins["👥 Twins<br/>Research"]
+            WD["🔍 Watchdog<br/>Supervisor"]
         end
         
-        Board["📋 Team Board<br/><i>File-based state</i>"]
-        Memory["🧠 Memory<br/><i>SQLite + Vectors</i>"]
-        Skills["⚡ 34 Skills<br/><i>PDF, XLSX, Research...</i>"]
+        Board["📋 Team Board"]
+        Memory["🧠 Memory"]
+        Skills["⚡ 35 Skills"]
     end
     
-    User -->|"message"| HB
-    HB -->|"sessions_send"| Saul
-    HB -->|"sessions_send"| Walter
-    HB -->|"sessions_send"| Jesse
-    HB -->|"sessions_send"| Skyler
-    HB -->|"sessions_send"| Hank
-    HB -->|"sessions_send"| Gus
-    HB -->|"sessions_send"| Twins
+    User -->|"ingress"| HB
+    HB -->|"sessions_spawn"| Saul
+    HB -->|"sessions_spawn"| Walter
+    HB -->|"sessions_spawn"| Jesse
+    HB -.->|"silent return"| Skyler
+    HB -.->|"silent return"| Hank
+    HB -.->|"silent return"| Gus
+    HB -.->|"silent return"| Twins
+    WD -.->|"alerts"| HB
     Saul -->|"coordinate"| Board
     Walter --> Skills
-    Jesse --> Skills
-    Skyler --> Skills
-    HB --> Memory
-    Saul --> Memory
     
     style HB fill:#ff6b35,stroke:#333,color:#fff
     style Saul fill:#4ecdc4,stroke:#333,color:#fff
@@ -120,67 +121,54 @@ graph TB
     style Hank fill:#ff6b6b,stroke:#333,color:#fff
     style Gus fill:#ffd93d,stroke:#333,color:#000
     style Twins fill:#6c5ce7,stroke:#333,color:#fff
-    style Board fill:#2d3436,stroke:#333,color:#fff
-    style Memory fill:#2d3436,stroke:#333,color:#fff
-    style Skills fill:#2d3436,stroke:#333,color:#fff
+    style WD fill:#636e72,stroke:#333,color:#fff
 ```
+
 ## Agents
 
-| Agent | Character | Role | Key Skills |
-|-------|-----------|------|------------|
-| **Heisenberg** | Walter White | Boss, user-facing | Delegation, delivery |
-| **Saul** | Saul Goodman | Coordinator | Pipeline management, briefings |
-| **Walter** | Walter White (lab) | Team Lead | Code, PDF, GitHub, skills |
-| **Jesse** | Jesse Pinkman | Marketing | Funnels, campaigns, analytics |
-| **Skyler** | Skyler White | Admin/Finance | DOCX, XLSX, contracts |
-| **Hank** | Hank Schrader | Security/QA | Audits, monitoring |
-| **Gus** | Gus Fring | Kaizen | Crons, self-improvement |
-| **Twins** | Salamanca Twins | Research | Deep research, web analysis |
+| Agent | Character | Role | Visible? | Key Skills |
+|-------|-----------|------|----------|------------|
+| **Heisenberg** | Walter White | Boss, user-facing | YES | Delegation, delivery |
+| **Saul** | Saul Goodman | Coordinator | YES | Pipeline management, briefings |
+| **Walter** | Walter White (lab) | Tech Lead | YES | Code, PDF, GitHub, skills |
+| **Jesse** | Jesse Pinkman | Marketing | YES | Funnels, campaigns, analytics |
+| **Skyler** | Skyler White | Finance | NO | DOCX, XLSX, contracts |
+| **Hank** | Hank Schrader | Security/QA | NO | Audits, monitoring |
+| **Gus** | Gus Fring | Kaizen | NO | Crons, self-improvement |
+| **Twins** | Salamanca Twins | Research | NO | Deep research, web analysis |
+| **Watchdog** | — | Supervisor | NO | Stuck sessions, health alerts |
 
 ## Quick Start
 
 ```bash
 # 1. Clone
-git clone https://github.com/YOUR_USERNAME/heisenberg-team.git
+git clone https://github.com/rubezhanin/heisenberg-team.git
 cd heisenberg-team
 
-# 2. Optional bootstrap installer
-bash scripts/bootstrap-install.sh
+# 2. One-command install (recommended)
+bash install.sh
 
-# 3. Configure environment
-cp .env.example .env
-# Edit .env with your LLM API key
-
-# 4. Interactive setup (recommended)
-bash scripts/setup-wizard.sh
-
-# 4. Initialize OpenClaw (first time only)
-openclaw init
-
-# 5. Run
-openclaw gateway start
-bash scripts/smoke-test.sh
+# That's it. install.sh runs:
+#   - bootstrap-install.sh (system deps, Node.js, OpenClaw)
+#   - setup-wizard.sh (providers, models, API keys, agents)
+#   - init-workspace.sh (workspace directories)
+#   - smoke-test.sh (verification)
 ```
 
-The setup wizard will ask for your name, Telegram ID, and other settings, then configure everything automatically.
-
-The setup wizard now supports:
-- selected agents only
-- per-agent Telegram bot tokens
-- custom display names
-- generated configs in `configs/generated/`
-- a dedicated team directory root
-
-Need a narrower rollout first?
+For non-interactive/VPS deployment:
 
 ```bash
-# Selected agents only
-bash scripts/setup.sh --agents heisenberg,saul,walter
-bash scripts/smoke-test.sh --agents heisenberg,saul,walter
-
-# Attach to an existing OpenClaw install
-bash scripts/setup.sh --attach-existing --agents heisenberg,walter
+bash install.sh --yes
 ```
+
+The setup wizard supports:
+- 7 LLM providers (Anthropic, OpenAI, Google, DeepSeek, OpenRouter, Ollama, custom)
+- 2 embedding providers (OpenAI, Ollama)
+- 2 voice transcription options (Groq API, local whisper.cpp)
+- per-agent Telegram bot tokens
+- language selection (EN/RU)
+- gateway auto-start (systemd/launchd)
+- selected agents only
 
 See [SETUP.md](SETUP.md) for detailed installation guide or [docs/first-task.md](docs/first-task.md) for your first walkthrough.
 
@@ -188,9 +176,9 @@ See [SETUP.md](SETUP.md) for detailed installation guide or [docs/first-task.md]
 
 > **Platform note:** Utility scripts in `scripts/` are optimized for macOS but support Linux/WSL. See [Linux Setup](docs/linux-setup.md) for platform-specific instructions.
 
-## Skills (34)
+## Skills (35)
 
-The team shares a library of 34 skills covering:
+The team shares a library of 35 skills covering:
 
 - **Content:** copywriter, youtube-seo, presentation, pptx-generator
 - **Research:** researcher, deep-research-pro, channel-analyzer, reddit
@@ -206,21 +194,23 @@ Full list with dependencies in [skills/README.md](skills/README.md).
 
 ```
 heisenberg-team/
-├── agents/          # 8 agents, each with config files
-├── skills/          # 34 shared skills
+├── agents/          # 9 agents (8 + watchdog), each with config files
+├── skills/          # 35 shared skills
 ├── scripts/         # Utility and automation scripts
+├── configs/         # OpenClaw config templates
 ├── references/      # Team constitution, standards
 ├── examples/        # Cookbooks and guides
-└── docs/            # Architecture, FAQ
+├── docs/            # Architecture, FAQ
+├── install.sh       # Universal installer (single entry point)
+└── IMPROVEMENTS.md  # Full changelog of all changes
 ```
 
-### 🤖 Deploy Full Team (Optional)
+### 🤖 Deploy Full Team
 
-Want all 8 agents working together? See the [Multi-Agent Deployment Guide](docs/deploy-agents.md).
+Want all 9 agents working together? See the [Multi-Agent Deployment Guide](docs/deploy-agents.md).
 
 ```bash
-# Automated workspace setup
-bash scripts/deploy-team.sh
+bash install.sh    # One command does everything
 ```
 
 ## Examples
@@ -233,13 +223,14 @@ bash scripts/deploy-team.sh
 
 - [Your First Task](docs/first-task.md) - step-by-step walkthrough
 - [Upgrade from Single Agent](docs/upgrade-from-single-agent.md) - migrate from single-agent setup
-- [Supported Providers](SETUP.md#supported-llm-providers) - Anthropic, OpenAI, Google, DeepSeek, Ollama
+- [Supported Providers](SETUP.md#supported-llm-providers) - Anthropic, OpenAI, Google, DeepSeek, OpenRouter, Ollama
 - [Agent Onboarding](docs/agent-onboarding.md) - configure agents on first launch
 - [Architecture](docs/architecture.md) - how agents communicate
 - [Agent Roles](docs/agent-roles.md) - what each agent does
-- [Linux Setup](docs/linux-setup.md) - running on Ubuntu/Debian
+- [Linux Setup](docs/linux-setup.md) - running on Ubuntu/Debian/Alpine/Fedora/Arch
 - [FAQ](docs/faq.md) - common questions and troubleshooting
-- [Skills Index](skills/README.md) - all 34 skills with dependencies
+- [Skills Index](skills/README.md) - all 35 skills with dependencies
+- [Improvements](IMPROVEMENTS.md) - full changelog of all changes
 
 ## Contributing
 

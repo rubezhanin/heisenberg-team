@@ -94,14 +94,14 @@ sqlite3 ~/.openclaw/memory/main.sqlite "PRAGMA journal_mode=WAL;"
 - Есть ли ошибки
 
 **Типичные проблемы:**
-1. Модель не указана полным путем (нужно `anthropic/claude-sonnet-4-6`)
+1. Модель не указана полным путем (нужно `{{AGENT_MODEL_ID}}`)
 2. API ключ не настроен
 3. Крон отключен (enabled: false)
 
 **Пример фикса:**
 
 ```bash
-openclaw cron edit watchdog-v2 --model "anthropic/claude-sonnet-4-6"
+openclaw cron edit watchdog-v2 --model "{{AGENT_MODEL_ID}}"
 openclaw cron enable watchdog-v2
 ```
 
@@ -214,7 +214,7 @@ launchctl kickstart -k gui/$(id -u)/com.openclaw.gateway
 ```bash
 openclaw cron add daily-health-check \
   --schedule "0 8 * * *" \
-  --model "anthropic/claude-sonnet-4-6" \
+  --model "{{AGENT_MODEL_ID}}" \
   --isolated \
   --payload '{
     "kind": "agentTurn",
