@@ -2,6 +2,10 @@
 .env
 .env.local
 
+# Local-only docs (not for GitHub)
+IMPROVEMENTS.md
+heisenberg-team-audit-report.md
+
 # Auth files
 auth.json
 auth-profiles.json
