@@ -12,7 +12,7 @@ if [ -f "$REPO_DIR_BOOT/.env" ]; then
   ENV_VER=$(grep '^OPENCLAW_VERSION=' "$REPO_DIR_BOOT/.env" 2>/dev/null | cut -d= -f2)
   [ -n "$ENV_VER" ] && OPENCLAW_VERSION="$ENV_VER"
 fi
-OPENCLAW_VERSION="${OPENCLAW_VERSION:-2026.4.8}"
+OPENCLAW_VERSION="${OPENCLAW_VERSION:-2026.4.12}"
 NODE_MAJOR="${NODE_MAJOR:-20}"
 NONINTERACTIVE="${OPENCLAW_NONINTERACTIVE:-0}"
 
@@ -31,7 +31,7 @@ Options:
   --help             Show this help
 
 Environment:
-  OPENCLAW_VERSION=X.Y.Z    Override OpenClaw version (default: 2026.4.8)
+  OPENCLAW_VERSION=X.Y.Z    Override OpenClaw version (default: 2026.4.12)
   NODE_MAJOR=N              Override Node.js major version (default: 20)
   OPENCLAW_NONINTERACTIVE=1 Same as --yes
 
@@ -334,6 +334,17 @@ install_openclaw() {
   log "OpenClaw $(openclaw --version 2>/dev/null || echo 'installed') ready"
 }
 
+# ─── Setup git hooks (pre-commit for secret protection) ───
+setup_git_hooks() {
+  # Only if we're in a git repo
+  if [ -d ".git" ] || git rev-parse --git-dir >/dev/null 2>&1; then
+    if [ -d ".githooks" ]; then
+      git config core.hooksPath .githooks 2>/dev/null && \
+        log "Git hooks configured (.githooks)" || true
+    fi
+  fi
+}
+
 # ─── Optional: Ollama ───
 install_ollama_optional() {
   if command -v ollama >/dev/null 2>&1; then
@@ -392,6 +403,11 @@ main() {
 
   # Optional: Ollama
   install_ollama_optional
+
+  echo ""
+
+  # Git hooks
+  setup_git_hooks
 
   echo ""
   log "=== Bootstrap complete ==="

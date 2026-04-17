@@ -46,7 +46,7 @@ GROQ_WHISPER_MODEL=whisper-large-v3-turbo
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_EMBEDDING_MODEL=nomic-embed-text
 TELEGRAM_BOT_TOKEN_HEISENBERG=...  (и все остальные агенты)
-OPENCLAW_VERSION=2026.4.8
+OPENCLAW_VERSION=2026.4.12
 TEAM_LANG=en
 ```
 

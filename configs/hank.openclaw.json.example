@@ -32,7 +32,12 @@
   },
   "agents": {
     "defaults": {
-      "maxConcurrent": 2
+      "maxConcurrent": 2,
+    "safety": {
+      "maxActionsPerHour": 50,
+      "maxCostPerDay": 5.00,
+      "currency": "USD"
+    }
     },
     "remoteAgents": {
       "heisenberg": {
@@ -71,6 +76,11 @@
   "heartbeat": {
     "enabled": true,
     "intervalMinutes": 30
+  },
+  "gateway": {
+    "host": "127.0.0.1",
+    "port": 18789,
+    "token": "{{GATEWAY_TOKEN}}"
   },
   "exec": {
     "defaultTimeoutSeconds": 30

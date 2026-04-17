@@ -792,7 +792,7 @@ General principle: when context gets heavy, delegate to subagents rather than do
 **Why full model ID for crons?** Aliases may not resolve correctly in scheduled contexts. Always use the full provider/model path.
 
 
-### 16.8 OpenClaw 2026.4.8 ops
+### 16.8 OpenClaw 2026.4.12 ops
 
 - Для быстрых проверок моделей, транскрибации, web/media inference и совместимости провайдеров использовать `openclaw infer`, а не кустарные прямые вызовы API.
 - Для структурирования долгой памяти и знаний команды можно использовать wiki-подход поверх файловой памяти.

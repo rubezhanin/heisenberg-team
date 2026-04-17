@@ -1,0 +1,44 @@
+#!/bin/bash
+# pre-commit hook — prevent committing secrets
+# Install: git config core.hooksPath .githooks
+
+# Block .env files
+if git diff --cached --name-only | grep -qE '\.env$|\.env\.local$'; then
+  echo "❌ BLOCKED: Attempt to commit .env file"
+  echo "   Secrets should never be committed."
+  echo "   Use: git reset HEAD .env"
+  exit 1
+fi
+
+# Block auth/token files
+if git diff --cached --name-only | grep -qE 'auth\.json$|credentials|\.pem$|\.key$'; then
+  echo "❌ BLOCKED: Attempt to commit auth/token file"
+  exit 1
+fi
+
+# Block files with API key patterns
+STAGED=$(git diff --cached --name-only)
+for f in $STAGED; do
+  if [ -f "$f" ]; then
+    if grep -qE 'sk-ant-[a-zA-Z0-9]{20,}|sk-proj-[a-zA-Z0-9]{20,}|gsk_[a-zA-Z0-9]{20,}|sk-or-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}' "$f" 2>/dev/null; then
+      echo "❌ BLOCKED: $f contains what looks like an API key"
+      echo "   Remove the key before committing."
+      exit 1
+    fi
+  fi
+done
+
+# Block gateway tokens in non-example files
+for f in $STAGED; do
+  if echo "$f" | grep -qvE '\.example$'; then
+    if [ -f "$f" ]; then
+      if grep -qE '"token":\s*"[a-f0-9]{64}"' "$f" 2>/dev/null; then
+        echo "❌ BLOCKED: $f contains a gateway token"
+        echo "   Tokens should be in .env only."
+        exit 1
+      fi
+    fi
+  fi
+done
+
+exit 0

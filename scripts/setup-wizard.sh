@@ -394,6 +394,10 @@ echo ""
 MAIN_MODEL_SHORT=$(echo "$MAIN_MODEL" | sed 's|.*/||')
 AGENT_MODEL_SHORT=$(echo "$AGENT_MODEL" | sed 's|.*/||')
 
+# Generate gateway token (64-char hex)
+GATEWAY_TOKEN=$(openssl rand -hex 32 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || head -c 64 /dev/urandom | od -An -tx1 | tr -d ' \n')
+echo -e "  ${GREEN}✓${NC} Gateway token generated (64 chars)"
+
 # Build replacement pairs
 declare -A REPLACEMENTS=(
   ["{{OWNER_NAME}}"]="${OWNER_NAME}"
@@ -422,6 +426,7 @@ declare -A REPLACEMENTS=(
   ["{{GOOGLE_API_KEY}}"]="${GOOGLE_API_KEY:-your-google-key}"
   ["{{DEEPSEEK_API_KEY}}"]="${DEEPSEEK_API_KEY:-your-deepseek-key}"
   ["{{OPENROUTER_API_KEY}}"]="${OPENROUTER_API_KEY:-your-openrouter-key}"
+  ["{{GATEWAY_TOKEN}}"]="${GATEWAY_TOKEN}"
   ["{{GROQ_API_KEY}}"]="${GROQ_API_KEY:-your-groq-key}"
   ["{{GROQ_WHISPER_MODEL}}"]="${GROQ_WHISPER_MODEL:-whisper-large-v3-turbo}"
   ["{{OLLAMA_BASE_URL}}"]="${OLLAMA_BASE_URL:-http://localhost:11434}"
@@ -517,6 +522,7 @@ write_env_var "OPENAI_API_KEY" "${OPENAI_API_KEY:-}"
 write_env_var "GOOGLE_API_KEY" "${GOOGLE_API_KEY:-}"
 write_env_var "DEEPSEEK_API_KEY" "${DEEPSEEK_API_KEY:-}"
 write_env_var "OPENROUTER_API_KEY" "${OPENROUTER_API_KEY:-}"
+write_env_var "GATEWAY_TOKEN" "${GATEWAY_TOKEN}"
 write_env_var "GROQ_API_KEY" "${GROQ_API_KEY:-}"
 write_env_var "GROQ_WHISPER_MODEL" "${GROQ_WHISPER_MODEL:-}"
 write_env_var "OLLAMA_BASE_URL" "${OLLAMA_BASE_URL:-}"
@@ -554,12 +560,22 @@ for char_name in "${SELECTED_AGENT_LIST[@]}"; do
     if [ -f "$REPO_DIR/configs/$char_name.openclaw.json.example" ]; then
       cp "$REPO_DIR/configs/$char_name.openclaw.json.example" "$REPO_DIR/configs/generated/$char_name.openclaw.json"
     fi
-    echo -e "  ${GREEN}✓${NC} $char_name → $agent_name"
+
+    # Security: protect identity files from agent self-modification
+    chmod 444 "$dest/SOUL.md" 2>/dev/null || true
+    chmod 444 "$dest/IDENTITY.md" 2>/dev/null || true
+    chmod 600 "$OPENCLAW_DIR/$agent_name/openclaw.json" 2>/dev/null || true
+
+    echo -e "  ${GREEN}✓${NC} $char_name → $agent_name (SOUL/IDENTITY protected)"
     INSTALLED=$((INSTALLED + 1))
   else
     echo -e "  ${YELLOW}⚠${NC} $char_name not found, skipping"
   fi
 done
+
+# Protect .env from accidental exposure
+chmod 600 "$REPO_DIR/.env" 2>/dev/null || true
+echo -e "  ${GREEN}✓${NC} .env permissions set to 600"
 
 echo ""
 

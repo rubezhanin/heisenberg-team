@@ -23,6 +23,7 @@
     "queue": {
       "mode": "collect",
       "debounceMs": 1000,
+      "debounceMsGroup": 3000,
       "cap": 20,
       "drop": "summarize"
     }
@@ -76,6 +77,11 @@
   "heartbeat": {
     "enabled": true,
     "intervalMinutes": 30
+  },
+  "gateway": {
+    "host": "127.0.0.1",
+    "port": 18789,
+    "token": "{{GATEWAY_TOKEN}}"
   },
   "exec": {
     "defaultTimeoutSeconds": 30
