@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# ============================================================================
+# pre-commit — Защита от утечки секретов в Heisenberg Team
+# ============================================================================
+# Установка: cp .github/hooks/pre-commit .git/hooks/pre-commit
+#             chmod +x .git/hooks/pre-commit
+# Или автоматически через deploy-one-click.sh
+# ============================================================================
+
+set -euo pipefail
+
+RED='\033[0;31m'; NC='\033[0m'
+
+# ── Блокировка секретных файлов ──
+BLOCKED_FILES=$(git diff --cached --name-only | grep -E '^\.env$|auth\.json$|\.openclaw\.json$|configs/generated/' || true)
+if [[ -n "$BLOCKED_FILES" ]]; then
+  echo -e "${RED}❌ BLOCKED: Попытка закоммитить секреты:${NC}"
+  echo "$BLOCKED_FILES"
+  echo ""
+  echo "Эти файлы содержат API ключи и токены."
+  echo "Если это намеренно: git commit --no-verify"
+  exit 1
+fi
+
+# ── Проверка на API ключи в любых файлах ──
+STAGED_DIFF=$(git diff --cached -U0 2>/dev/null || true)
+if [[ -n "$STAGED_DIFF" ]]; then
+  LEAKED=$(echo "$STAGED_DIFF" | grep -E \
+    '(sk-ant-api[0-9]+-[A-Za-z0-9]{40,}|sk-[A-Za-z0-9]{20,}|sk-or-v1-[A-Za-z0-9]{40,}|gsk_[A-Za-z0-9]{20,}|AIzaSy[A-Za-z0-9_-]{33})' \
+    || true)
+
+  if [[ -n "$LEAKED" ]]; then
+    echo -e "${RED}❌ BLOCKED: Обнаружен API ключ в staged изменениях!${NC}"
+    echo ""
+    echo "Перенесите ключ в .env и используйте переменные окружения."
+    echo "Если это ложное срабатывание: git commit --no-verify"
+    exit 1
+  fi
+fi
+
+# ── Проверка на персональные данные ──
+if [[ -x "scripts/depersonalize.sh" ]]; then
+  STAGED_MD=$(git diff --cached --name-only -- '*.md' || true)
+  if [[ -n "$STAGED_MD" ]]; then
+    for f in $STAGED_MD; do
+      if git show ":$f" 2>/dev/null | grep -qE '@[a-zA-Z0-9]+\.(com|ru|org)' 2>/dev/null; then
+        echo -e "${RED}⚠ WARNING: Возможно email в $f${NC}"
+        echo "Проверьте: bash scripts/depersonalize.sh --check-only"
+      fi
+    done
+  fi
+fi
+
+exit 0

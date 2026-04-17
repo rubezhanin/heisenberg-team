@@ -49,6 +49,44 @@ See `references/production-safety-standard.md` for the full checklist covering:
 3. Keep agent session sizes manageable (use `scripts/trash-agent-session.sh` for cleanup)
 4. Monitor cron jobs via `scripts/cron-watchdog.sh`
 
+## Automated Security Hardening
+
+`deploy-one-click.sh` автоматически применяет следующие меры:
+
+### Gateway Protection
+- Gateway привязан к `127.0.0.1` (никогда `0.0.0.0`)
+- 64-символьный случайный gateway token
+- Для удалённого доступа используйте Tailscale/VPN/SSH tunnel
+
+### File Permissions
+| Файл | Права | Причина |
+|------|-------|---------|
+| `.env` | `600` | API ключи и токены |
+| `openclaw.json` | `600` | Конфигурация с ключами |
+| `SOUL.md` | `444` | Защита от перезаписи агентом |
+| `IDENTITY.md` | `444` | Защита личности агента |
+| `.integrity-baseline.sha256` | `444` | Эталон целостности |
+
+### Integrity Monitoring
+
+```bash
+bash scripts/integrity-check.sh            # Проверка
+bash scripts/integrity-check.sh --fix      # Восстановление
+bash scripts/integrity-check.sh --update   # Обновить baseline
+```
+
+### Security Checklist (перед production)
+- [ ] Gateway: `host` = `127.0.0.1`, token задан
+- [ ] Firewall: порт 18789 закрыт для внешнего доступа
+- [ ] `.env`: `chmod 600`, не в git
+- [ ] SOUL.md/IDENTITY.md: `chmod 444`
+- [ ] Skills: CHECKSUMS.sha256 верифицирован
+- [ ] Pre-commit hook установлен
+- [ ] `openclaw security audit` пройден
+- [ ] `bash scripts/integrity-check.sh` — OK
+- [ ] Cost limits установлены
+- [ ] Telegram bot tokens ротированы с момента тестирования
+
 ## Scope
 
 This security policy covers the Heisenberg Team template and its configuration files. Security of the underlying OpenClaw platform is managed separately.

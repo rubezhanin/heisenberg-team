@@ -137,20 +137,42 @@ graph TB
 
 ## Быстрый старт
 
+### Один клик (рекомендуется)
+
 ```bash
 # 1. Клонировать
 git clone https://github.com/YOUR_USERNAME/heisenberg-team.git
 cd heisenberg-team
 
-# 2. Настроить
+# 2. Deploy — визард спросит всё необходимое
+bash deploy-one-click.sh
+```
+
+Скрипт автоматически:
+- Установит Node.js 20+ и зависимости (если нет)
+- Установит OpenClaw (если нет)
+- Проведёт через визард конфигурации
+- Развернёт агентов с shared skills
+- Применит security hardening
+- Запустит gateway
+- Выполнит smoke test
+
+### Non-interactive (для CI/CD)
+
+```bash
 cp .env.example .env
-# Отредактируй .env своими значениями
+# Заполните .env
+bash deploy-one-click.sh --yes
+```
 
-# 3. Установить
-bash scripts/setup.sh
+### Частичное развёртывание
 
-# 4. Запустить
-openclaw gateway start
+```bash
+# Только 3 агента
+bash deploy-one-click.sh --agents heisenberg,saul,walter
+
+# OpenClaw уже установлен
+bash deploy-one-click.sh --attach-existing
 ```
 
 Подробная инструкция: [SETUP.md](SETUP.md)

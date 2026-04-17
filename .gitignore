@@ -15,6 +15,9 @@ models.json
 # Generated local configs
 configs/generated/
 
+# Integrity baseline
+.integrity-baseline.sha256
+
 # OS files
 .DS_Store
 Thumbs.db

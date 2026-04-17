@@ -140,41 +140,47 @@ graph TB
 
 ## Quick Start
 
+### Один клик (рекомендуется)
+
 ```bash
 # 1. Clone
-git clone https://github.com/rubezhanin/heisenberg-team.git
+git clone https://github.com/YOUR_USERNAME/heisenberg-team.git
 cd heisenberg-team
 
-# 2. One-command install (recommended)
-bash install.sh
-
-# That's it. install.sh runs:
-#   - bootstrap-install.sh (system deps, Node.js, OpenClaw)
-#   - setup-wizard.sh (providers, models, API keys, agents)
-#   - init-workspace.sh (workspace directories)
-#   - smoke-test.sh (verification)
+# 2. Deploy — визард спросит всё необходимое
+bash deploy-one-click.sh
 ```
 
-For non-interactive/VPS deployment:
+Скрипт автоматически:
+- Установит Node.js 20+ и зависимости (если нет)
+- Установит OpenClaw (если нет)
+- Проведёт через визард конфигурации
+- Развернёт агентов с shared skills
+- Применит security hardening
+- Запустит gateway
+- Выполнит smoke test
+
+### Non-interactive (для CI/CD и опытных пользователей)
 
 ```bash
-bash install.sh --yes
+cp .env.example .env
+# Заполните .env
+bash deploy-one-click.sh --yes
 ```
 
-The setup wizard supports:
-- 7 LLM providers (Anthropic, OpenAI, Google, DeepSeek, OpenRouter, Ollama, custom)
-- 2 embedding providers (OpenAI, Ollama)
-- 2 voice transcription options (Groq API, local whisper.cpp)
-- per-agent Telegram bot tokens
-- language selection (EN/RU)
-- gateway auto-start (systemd/launchd)
-- selected agents only
+### Частичное развёртывание
 
-See [SETUP.md](SETUP.md) for detailed installation guide or [docs/first-task.md](docs/first-task.md) for your first walkthrough.
+```bash
+# Только 3 агента
+bash deploy-one-click.sh --agents heisenberg,saul,walter
 
-> **Language note:** Agent personalities and team protocols are in Russian. The architecture works in any language — edit `SOUL.md` and `AGENTS.md` in each agent to change language.
+# OpenClaw уже установлен
+bash deploy-one-click.sh --attach-existing
+```
 
-> **Platform note:** Utility scripts in `scripts/` are optimized for macOS but support Linux/WSL. See [Linux Setup](docs/linux-setup.md) for platform-specific instructions.
+### Ручная установка
+
+Если предпочитаете пошаговую установку, смотрите [SETUP.md](SETUP.md).
 
 ## Skills (35)
 
