@@ -196,7 +196,7 @@ SKILL.md → SKILL-public.md → убрать личное → аудит пов
 {
   "id": "<agent-id>",
   "name": "Имя Агента",
-  "model": "anthropic/claude-sonnet-4-6",
+  "model": "{{AGENT_MODEL}}",
   "workspace": "~/.openclaw/agents/<agent-id>/agent",
   "agentDir": "~/.openclaw/agents/<agent-id>/agent",
   "memorySearch": { "enabled": true },
@@ -589,7 +589,7 @@ skills/auto-mechanic/
 
 Конфиг:
 ```json
-{ "id": "teamlead", "name": "Team Lead", "model": { "primary": "anthropic/claude-opus-4-6" },
+{ "id": "teamlead", "name": "Team Lead", "model": { "primary": "{{MAIN_MODEL}}" },
   "workspace": "~/.openclaw/agents/teamlead/agent",
   "agentDir": "~/.openclaw/agents/teamlead/agent",
   "memorySearch": { "enabled": true },
@@ -619,7 +619,7 @@ memorySearch включён - накапливает контекст между
 ### Пример 5: Специализированный агент (Кайдзен - коуч)
 
 ```json
-{ "id": "kaizen", "model": "anthropic/claude-sonnet-4-6",
+{ "id": "kaizen", "model": "{{AGENT_MODEL}}",
   "workspace": "obsidian/", "memorySearch": { "enabled": false } }
 ```
 
@@ -628,7 +628,7 @@ memorySearch включён - накапливает контекст между
 ### Пример 6: Изолированный агент (Копирайтер - маска)
 
 ```json
-{ "id": "copywriter", "model": "anthropic/claude-sonnet-4-6",
+{ "id": "copywriter", "model": "{{AGENT_MODEL}}",
   "memorySearch": { "enabled": false },
   "tools": { "deny": ["gateway", "cron", "exec"] } }
 ```

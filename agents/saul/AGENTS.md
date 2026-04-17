@@ -58,8 +58,15 @@ Handler думает ЧТО делать. Dispatch передаёт КАК де�
 - `bash {{WORKSPACE_PATH}}scripts/trash-agent-session.sh <agent>` (сброс если >50K)
 - `sleep 5` (пауза для инициализации сессии!)
 - Записать задачу на board: `references/team-board.md`
-- Разбудить: `sessions_send(sessionKey="agent:<id>:main", message="Задача на board, briefing в projects/[X]/briefing.md", timeoutSeconds=120)`
-- Ждать ответ в сессии (timeoutSeconds=120)
+- **Длинная задача (>20с):** `sessions_spawn(task="[объектив + success condition]", model="{{AGENT_MODEL_SHORT}}", runTimeoutSeconds=300)`
+- **Короткая задача (<20с):** `sessions_send(sessionKey="agent:<id>:main", message="...", timeoutSeconds=120)`
+- Ждать ответ. Если spawn — через task ledger. Если send — в сессии (timeoutSeconds=120)
+
+### 2.1. Timeout SLA при ожидании
+- 30-45с — первый checkpoint
+- 60с — ожидается progress update
+- 90с — сигнал "подвисает"
+- 120с — hard decision: continue / steer / cancel+respawn / взять самому
 
 ### 3. ПОЛУЧЕНИЕ РЕЗУЛЬТАТА
 - Проверь что файлы на месте (read файл результата)

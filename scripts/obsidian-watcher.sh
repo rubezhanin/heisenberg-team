@@ -18,7 +18,12 @@ set -euo pipefail
 VAULT_DIR="${WORKSPACE_PATH:-$HOME/workspace}/obsidian"
 WEBHOOK_URL="http://127.0.0.1:18789/hooks/agent"
 WEBHOOK_TOKEN="${WEBHOOK_TOKEN:-}"
-MODEL="anthropic/claude-sonnet-4-6"
+
+# Source .env if available (for model and tokens)
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+[ -f "$REPO_DIR/.env" ] && set -a && . "$REPO_DIR/.env" && set +a
+
+MODEL="${AGENT_MODEL:-${MAIN_MODEL:-anthropic/claude-sonnet-4-6}}"
 LOG_FILE="$HOME/.openclaw/logs/obsidian-watcher.log"
 PID_FILE="/tmp/obsidian-watcher.pid"
 # Debounce через latency fswatch (секунды)

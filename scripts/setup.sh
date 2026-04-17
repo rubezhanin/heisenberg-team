@@ -126,26 +126,33 @@ done
 
 echo ""
 if [ "$INSTALL_SKILLS" = true ]; then
-  echo "📚 Installing skills..."
-  SKILLS_DEST="$OPENCLAW_DIR/producer/agent/skills"
-  if [ -d "$REPO_DIR/skills" ]; then
-    mkdir -p "$SKILLS_DEST"
-    SKILL_OK=0
-    SKILL_FAIL=0
-    for skill_dir in "$REPO_DIR/skills"/*/; do
-      skill_name=$(basename "$skill_dir")
-      if cp -r "$skill_dir" "$SKILLS_DEST/" 2>/dev/null; then
-        SKILL_OK=$((SKILL_OK + 1))
-      else
-        echo "  ⚠ Failed to copy: $skill_name"
-        SKILL_FAIL=$((SKILL_FAIL + 1))
-      fi
-    done
-    echo "  ✓ $SKILL_OK skills installed"
-    [ "$SKILL_FAIL" -gt 0 ] && echo "  ⚠ $SKILL_FAIL skills failed — check permissions"
+  echo "📚 Installing skills (shared directory)..."
+  if [ -f "$SCRIPT_DIR/setup-skills.sh" ]; then
+    AGENT_ARGS=""
+    [ -n "$SELECTED_AGENTS" ] && AGENT_ARGS="--agents $SELECTED_AGENTS"
+    bash "$SCRIPT_DIR/setup-skills.sh" $AGENT_ARGS
   else
-    echo "  ❌ Skills directory not found!"
-    exit 1
+    # Fallback: old copy method
+    SKILLS_DEST="$OPENCLAW_DIR/producer/agent/skills"
+    if [ -d "$REPO_DIR/skills" ]; then
+      mkdir -p "$SKILLS_DEST"
+      SKILL_OK=0
+      SKILL_FAIL=0
+      for skill_dir in "$REPO_DIR/skills"/*/; do
+        skill_name=$(basename "$skill_dir")
+        if cp -r "$skill_dir" "$SKILLS_DEST/" 2>/dev/null; then
+          SKILL_OK=$((SKILL_OK + 1))
+        else
+          echo "  ⚠ Failed to copy: $skill_name"
+          SKILL_FAIL=$((SKILL_FAIL + 1))
+        fi
+      done
+      echo "  ✓ $SKILL_OK skills installed"
+      [ "$SKILL_FAIL" -gt 0 ] && echo "  ⚠ $SKILL_FAIL skills failed — check permissions"
+    else
+      echo "  ❌ Skills directory not found!"
+      exit 1
+    fi
   fi
 else
   echo "📚 Skipping skills installation (--no-skills)"

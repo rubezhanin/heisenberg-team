@@ -17,7 +17,7 @@ All agents run inside **one OpenClaw gateway** as separate agent sessions. Each 
 
 ## Prerequisites
 
-- **Node.js 18+** — `node --version`
+- **Node.js 20+** — `node --version`
 - **npm** — `npm --version`
 - **OpenClaw** — `npm install -g openclaw`
 - **Telegram account** — to receive messages from agents
@@ -128,7 +128,7 @@ Then **edit the generated config** and replace placeholders:
 {
   "version": 1,
   "name": "{{DISPLAY_NAME_HEISENBERG}}",
-  "model": { "default": "anthropic/claude-opus-4-5" },
+  "model": { "default": "{{MAIN_MODEL}}" },
   "plugins": {
     "entries": {
       "telegram": {
@@ -204,7 +204,7 @@ Add cron jobs for automated tasks. Edit with `crontab -e`:
 0 * * * * bash ~/openclaw-agents/heisenberg/scripts/agent-health-check.sh
 ```
 
-> 💡 Use `anthropic/claude-sonnet-4-5` (not opus) for all cron-triggered agent turns to save costs.
+> Use the agent model (not main model) for all cron-triggered agent turns to save costs. Full model ID required, e.g. `{{AGENT_MODEL_ID}}`.
 
 ---
 

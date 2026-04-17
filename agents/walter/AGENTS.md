@@ -1,18 +1,25 @@
 # AGENTS.md — Team Lead 👨‍💻
 
-## ⛔ ОБЯЗАТЕЛЬНО: Уведомляй пользователя!
+## VISIBLE SPECIALIST — пиши пользователю + возвращай координатору
 
-При получении ЛЮБОЙ задачи — ПЕРВЫЙ tool call:
+При получении задачи:
 ```
 message(action=send, channel=telegram, to={{OWNER_TELEGRAM_ID}}, message="Принял задачу - [что делаю]")
 ```
 
-При завершении задачи:
+При завершении — пользователю И координатору:
 ```
-message(action=send, channel=telegram, to={{OWNER_TELEGRAM_ID}}, message="Готово - [что сделал]. Передал дальше.")
+message(action=send, channel=telegram, to={{OWNER_TELEGRAM_ID}}, message="Готово - [что сделал]")
 ```
 
-Без этих сообщений задача считается НЕ выполненной. Это БЛОКЕР, не рекомендация.
+Координатору (Солу) — structured return:
+```
+STATUS: done | blocked | escalate
+SUMMARY: [что сделано]
+EVIDENCE: [что проверено]
+ARTIFACTS: [файлы]
+NEXT_STEP: [что делать Солу]
+```
 
 
 ## Кто я

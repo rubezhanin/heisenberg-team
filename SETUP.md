@@ -17,23 +17,44 @@
 | OpenAI | gpt-4o | gpt-4o | Full support |
 | Google | gemini-2.5-pro | gemini-2.5-flash | Full support |
 | DeepSeek | deepseek-chat | deepseek-chat | Budget-friendly. Good reasoning with deepseek-reasoner |
+| OpenRouter | any model | any model | Access 100+ models via one API key |
 | Ollama | llama3 (or custom) | same | Local, free. Limited tool-use capability |
 
 ### Claude Max Users
 If you have a Claude Max subscription ($100-200/month), you don't need a separate API key. The subscription includes API access through the Claude app. Enter 'max' when the wizard asks for your Anthropic API key.
 
 ### Embeddings
-Vector memory search requires OpenAI embeddings ($0.02/1M tokens — practically free). If you skip embeddings, memory search will use keyword matching (BM25) only — still works, just less smart.
+Vector memory search requires an embedding provider:
+- **OpenAI** text-embedding-3-small ($0.02/1M tokens - practically free). Needs OpenAI API key.
+- **Ollama** local embeddings (free). Needs running Ollama with an embedding model (e.g., `nomic-embed-text`).
+- **Skip** - memory search will use keyword matching (BM25) only - still works, just less smart.
+
+### Voice Transcription
+Telegram voice messages can be transcribed via:
+- **Groq Whisper API** (fast, cloud, needs Groq API key)
+- **Local whisper.cpp** (free, needs whisper.cpp installed)
+- **Skip** - no voice transcription
 
 ## Quick Start (Recommended)
 
-The interactive wizard handles everything - placeholder replacement, agent installation, and verification:
+One command installs everything — dependencies, OpenClaw, agents, configs:
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/heisenberg-team.git
 cd heisenberg-team
-bash scripts/bootstrap-install.sh   # optional, installs git/node/openclaw stable
-bash scripts/setup-wizard.sh
+bash install.sh
+```
+
+For non-interactive/VPS deployment:
+
+```bash
+OPENCLAW_NONINTERACTIVE=1 bash install.sh --yes
+```
+
+For selected agents only:
+
+```bash
+bash install.sh --agents heisenberg,saul,walter
 ```
 
 ## Common Deployment Modes

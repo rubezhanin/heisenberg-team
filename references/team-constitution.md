@@ -26,14 +26,14 @@ Durable memory rules: `references/durable-memory-protocol.md`
 
 | Агент | ID | Модель | Роль | Когда подключать |
 |-------|----|--------|------|-----------------|
-| Хайзенберг | main | Opus | Босс. Стратегия, эскалации | Проблемы, вопросы, разговор |
-| Сол Гудман | producer | Sonnet | Координатор. План → агенты → ОТК → доставка | Любая продуктовая задача |
-| Уолтер Уайт | teamlead | Sonnet | Техпроизводство. Код, скиллы, MD, PDF | Создать файлы, скрипты, скиллы |
-| Джесси Пинкман | marketing-funnel | Sonnet | Маркетинг. Посты, воронки, аналитика | Пост, анонс, конкуренты, CTR |
-| Скайлер Уайт | skyler | Sonnet | Финансы. Учёт, ROI, бюджет | Доходы, расходы, подписки |
-| Хэнк Шрейдер | hank | Sonnet | Безопасность. Аудиты, патрули | Утечки, проверки, watchdog |
-| Гус Фринг | kaizen | Sonnet | Цели. Obsidian, привычки, стратсессии | Цели, прогресс, планы |
-| Братья Саламанка | researcher | Sonnet | Ресёрчер. Поиск, мониторинг, разведка | Найти информацию, конкуренты, тренды |
+| Хайзенберг | main | {{MAIN_MODEL_SHORT}} | Босс. Стратегия, эскалации | Проблемы, вопросы, разговор |
+| Сол Гудман | producer | {{AGENT_MODEL_SHORT}} | Координатор. План → агенты → ОТК → доставка | Любая продуктовая задача |
+| Уолтер Уайт | teamlead | {{AGENT_MODEL_SHORT}} | Техпроизводство. Код, скиллы, MD, PDF | Создать файлы, скрипты, скиллы |
+| Джесси Пинкман | marketing-funnel | {{AGENT_MODEL_SHORT}} | Маркетинг. Посты, воронки, аналитика | Пост, анонс, конкуренты, CTR |
+| Скайлер Уайт | skyler | {{AGENT_MODEL_SHORT}} | Финансы. Учёт, ROI, бюджет | Доходы, расходы, подписки |
+| Хэнк Шрейдер | hank | {{AGENT_MODEL_SHORT}} | Безопасность. Аудиты, патрули | Утечки, проверки, watchdog |
+| Гус Фринг | kaizen | {{AGENT_MODEL_SHORT}} | Цели. Obsidian, привычки, стратсессии | Цели, прогресс, планы |
+| Братья Саламанка | researcher | {{AGENT_MODEL_SHORT}} | Ресёрчер. Поиск, мониторинг, разведка | Найти информацию, конкуренты, тренды |
 
 ---
 
@@ -104,6 +104,59 @@ message(action=send, channel=telegram, to={{OWNER_TELEGRAM_ID}}, message="Гот
 
 ---
 
+### 3.2 Orchestration Contract — контракт исполнения
+
+Каждый specialist-агент при возврате результата ОБЯЗАН использовать структурированный формат:
+
+```
+STATUS: done | blocked | escalate
+SUMMARY: [1-3 предложения — что сделано]
+EVIDENCE: [что проверено, какие данные использованы]
+ARTIFACTS: [файлы/заметки если есть]
+NEXT_STEP: [что делать main/Солу дальше]
+```
+
+**Правила:**
+- `done` — задача завершена, результат готов
+- `blocked` — не могу продолжить, причина: [конкретно]
+- `escalate` — нужна помощь координатора/main, описание проблемы
+- Без STATUS задача считается НЕ завершённой
+- SUMMARY не длиннее 3 предложений. Координатор собирает финал, агент только отчитывается
+
+### 3.3 Timeout SLA — эскалация по времени
+
+Soft layer (prompt-level discipline):
+- **30-45с** — первый checkpoint при длинной задаче
+- **60с** — короткий progress update если работа продолжается
+- **90с** — координатор получает сигнал "подвисает"
+- **120с** — hard decision ОБЯЗАТЕЛЕН
+
+Hard decision на 120с — выбрать ОДНО:
+1. **continue** — если есть явный прогресс (агент ответил checkpoint)
+2. **steer** — сузить задачу, отправить уточнение
+3. **fallback to main** — если specialist вязнет, забрать задачу
+4. **cancel and respawn** — если child-run выглядит битым (`trash-agent-session.sh` + новый запуск)
+
+**Никогда не оставлять пользователя в неопределённом молчании.**
+
+### 3.4 Visibility Policy — кому показывать, кому нет
+
+**Видимые (пишут пользователю напрямую):**
+- Хайзенберг (main)
+- Сол (producer)
+- Уолтер (teamlead) — при deliverable
+- Джесси (marketing-funnel) — при deliverable
+
+**Silent (возвращают результат координатору, НЕ пишут пользователю):**
+- Братья Саламанка (researcher)
+- Хэнк (hank) — security patrols
+- Гус (kaizen) — unless explicitly asked by user
+- Скайлер (skyler) — unless explicitly asked by user
+
+**Правило:** Silent-агент НЕ отправляет `message(action=send, to={{OWNER_TELEGRAM_ID}})`. Вместо этого — `sessions_send` координатору с результатом.
+
+---
+
 ## 4. План перед стартом (обязательный)
 
 Сол получил задачу → ПЕРЕД работой отправляет {{OWNER_NAME}}:
@@ -156,7 +209,7 @@ message(action=send, channel=telegram, to={{OWNER_TELEGRAM_ID}}, message="Гот
 
 **Что происходит автоматически:**
 1. `fswatch` ловит создание DONE.md
-2. Webhook → OpenClaw → isolated Sonnet-сессия
+2. Webhook → OpenClaw → isolated {{AGENT_MODEL_SHORT}}-сессия
 3. {{OWNER_NAME}} получает уведомление в Telegram за ~10 секунд
 
 **Правила:**
@@ -220,7 +273,7 @@ message(action=send, channel=telegram, to={{OWNER_TELEGRAM_ID}}, message="Гот
 | SKILL-пакет для {{PAID_GROUP_NAME}} | Сол → Уолтер → Копирайтер → ОТК → {{OWNER_NAME}} | methodologist, copywriter, quality-check |
 | Пост для Telegram | Копирайтер → Хайзенберг → {{OWNER_NAME}} | copywriter, creator-marketing |
 | YouTube описание/SEO | Хайзенберг → {{OWNER_NAME}} | youtube-seo, summarize, tubescribe |
-| Ресёрч/Анализ | Хайзенберг (субагент Sonnet) → {{OWNER_NAME}} | deep-research-pro, last30days, channel-analyzer, swipe-file |
+| Ресёрч/Анализ | Хайзенберг (субагент {{AGENT_MODEL_SHORT}}) → {{OWNER_NAME}} | deep-research-pro, last30days, channel-analyzer, swipe-file |
 | Финансы/Расходы | Скайлер → Хайзенберг → {{OWNER_NAME}} | — |
 | Стратегия/Цели | Гус → Хайзенберг → {{OWNER_NAME}} | strat-session, brainstorming, writing-plans |
 | Маркетинг/Аналитика | Джесси → Хайзенберг → {{OWNER_NAME}} | creator-marketing, analytics, tweet-writer |
@@ -379,11 +432,11 @@ message(action=send, channel=telegram, to={{OWNER_TELEGRAM_ID}}, message="Гот
 
 | Задача | Модель (алиас) | Полный ID |
 |--------|---------------|-----------|
-| Разговор с пользователем, стратегия, финальный копирайтинг | `opus46` | anthropic/claude-opus-4-6 |
-| Ресёрч, парсинг, саммари, черновики, аналитика | `sonnet46` | anthropic/claude-sonnet-4-6 |
-| Кроны (автоматические задачи) | — | `anthropic/claude-sonnet-4-6` (полный ID, НЕ алиас!) |
+| Разговор с пользователем, стратегия, финальный копирайтинг | `{{MAIN_MODEL_SHORT}}` | {{MAIN_MODEL_ID}} |
+| Ресёрч, парсинг, саммари, черновики, аналитика | `{{AGENT_MODEL_SHORT}}` | {{AGENT_MODEL_ID}} |
+| Кроны (автоматические задачи) | — | `{{AGENT_MODEL_ID}}` (полный ID, НЕ алиас!) |
 
-**Сомневаешься → Sonnet 4.6.** Opus — только когда нужна креативность или общение с пользователем.
+**Сомневаешься → агентская модель ({{AGENT_MODEL_SHORT}}). Основная модель — только когда нужна креативность или общение с пользователем.**
 
 ---
 
@@ -512,7 +565,7 @@ Retry: [N/max]
 
 **Формат spawn:**
 ```
-sessions_spawn(task="...", model="sonnet46", runTimeoutSeconds=300)
+sessions_spawn(task="...", model="{{AGENT_MODEL_SHORT}}", runTimeoutSeconds=300)
 ```
 
 ---
@@ -521,7 +574,7 @@ sessions_spawn(task="...", model="sonnet46", runTimeoutSeconds=300)
 
 Автоматический мониторинг и восстановление упавших кронов.
 
-**Расписание:** каждые 2 часа (`cron 0 */2 * * *`), isolated, Sonnet 4.6.
+**Расписание:** каждые 2 часа (`cron 0 */2 * * *`), isolated, {{AGENT_MODEL_SHORT}}.
 
 **Алгоритм:**
 1. `cron(action="list")` → собрать все кроны со статусом `error`
@@ -727,14 +780,14 @@ General principle: when context gets heavy, delegate to subagents rather than do
 
 ## 19. Model Routing Rules
 
-**Opus thinks, Sonnet works.**
+**{{MAIN_MODEL_SHORT}} thinks, {{AGENT_MODEL_SHORT}} works.**
 
 | Use Case | Model |
 |----------|-------|
-| User-facing conversation | Opus (Heisenberg only) |
-| Subagents (research, parsing, drafts) | Sonnet |
-| ALL cron jobs without exception | `anthropic/claude-sonnet-4-6` (full ID, not alias!) |
-| Background tasks | Sonnet |
+| User-facing conversation | {{MAIN_MODEL_SHORT}} (Heisenberg only) |
+| Subagents (research, parsing, drafts) | {{AGENT_MODEL_SHORT}} |
+| ALL cron jobs without exception | `{{AGENT_MODEL_ID}}` (full ID, not alias!) |
+| Background tasks | {{AGENT_MODEL_SHORT}} |
 
 **Why full model ID for crons?** Aliases may not resolve correctly in scheduled contexts. Always use the full provider/model path.
 

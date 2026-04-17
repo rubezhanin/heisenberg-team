@@ -641,8 +641,43 @@ with open('$CONFIG_FILE','w') as f:
     check_fixed "Prompt restored" "memoryFlush prompt restored"
 fi
 
-# 17. Model fallback chain
+# 17. Model fallback chain (provider-aware)
 check_start "Model fallbacks"
+
+# Source .env for provider info
+REPO_DIR_SCRIPT="$(cd "$(dirname "$0")/.." && pwd)"
+[ -f "$REPO_DIR_SCRIPT/.env" ] && set -a && . "$REPO_DIR_SCRIPT/.env" && set +a
+PRIMARY_MODEL="${MAIN_MODEL:-anthropic/claude-opus-4-6}"
+MODEL_PROVIDER="${PRIMARY_MODEL%%/*}"
+
+case "$MODEL_PROVIDER" in
+  anthropic)
+    EXPECTED_PRIMARY="anthropic/claude-opus-4-6"
+    EXPECTED_FB="['anthropic/claude-opus-4-5','anthropic/claude-sonnet-4-5','anthropic/claude-haiku-4-5']"
+    FALLBACK_DESC="Opus 4.6 -> Opus 4.5 -> Sonnet -> Haiku"
+    ;;
+  openai)
+    EXPECTED_PRIMARY="openai/gpt-4o"
+    EXPECTED_FB="['openai/gpt-4o-mini']"
+    FALLBACK_DESC="GPT-4o -> GPT-4o-mini"
+    ;;
+  google)
+    EXPECTED_PRIMARY="google/gemini-2.5-pro"
+    EXPECTED_FB="['google/gemini-2.5-flash']"
+    FALLBACK_DESC="Gemini 2.5 Pro -> Flash"
+    ;;
+  openrouter)
+    EXPECTED_PRIMARY="$PRIMARY_MODEL"
+    EXPECTED_FB="[]"
+    FALLBACK_DESC="OpenRouter (no fallbacks)"
+    ;;
+  *)
+    EXPECTED_PRIMARY="$PRIMARY_MODEL"
+    EXPECTED_FB="[]"
+    FALLBACK_DESC="$MODEL_PROVIDER (no fallbacks)"
+    ;;
+esac
+
 FALLBACKS_OK=$(python3 -c "
 import json
 with open('$CONFIG_FILE') as f:
@@ -650,27 +685,27 @@ with open('$CONFIG_FILE') as f:
 m = data.get('agents',{}).get('defaults',{}).get('model',{})
 primary = m.get('primary','')
 fb = m.get('fallbacks',[])
-expected_primary = 'anthropic/claude-opus-4-6'
-expected_fb = ['anthropic/claude-opus-4-5','anthropic/claude-sonnet-4-5','anthropic/claude-haiku-4-5','google-gemini-cli/gemini-3-pro-preview']
+expected_primary = '$EXPECTED_PRIMARY'
+expected_fb = $EXPECTED_FB
 if primary == expected_primary and fb == expected_fb:
     print('ok')
 else:
     print(f'primary={primary} fb={len(fb)}')
 " 2>/dev/null)
 if [ "$FALLBACKS_OK" = "ok" ]; then
-    check_ok "Opus 4.6 → Opus 4.5 → Sonnet → Haiku → Gemini"
+    check_ok "$FALLBACK_DESC"
 else
     python3 -c "
 import json
 with open('$CONFIG_FILE') as f:
     data = json.load(f)
 m = data.setdefault('agents',{}).setdefault('defaults',{}).setdefault('model',{})
-m['primary'] = 'anthropic/claude-opus-4-6'
-m['fallbacks'] = ['anthropic/claude-opus-4-5','anthropic/claude-sonnet-4-5','anthropic/claude-haiku-4-5','google-gemini-cli/gemini-3-pro-preview']
+m['primary'] = '$EXPECTED_PRIMARY'
+m['fallbacks'] = $EXPECTED_FB
 with open('$CONFIG_FILE','w') as f:
     json.dump(data,f,indent=2,ensure_ascii=False)
 " 2>/dev/null
-    check_fixed "Fallback chain restored" "Model fallback chain restored"
+    check_fixed "Fallback chain updated" "Model fallback chain updated for $MODEL_PROVIDER"
 fi
 
 # 18. TTS settings

@@ -4,9 +4,11 @@ This guide covers running Heisenberg Team on Ubuntu/Debian Linux (VPS or local).
 
 ## Prerequisites
 
-- Ubuntu 20.04+ / Debian 11+
-- Node.js 18+ (`curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash -`)
-- OpenClaw (`npm install -g openclaw`)
+- **Linux:** Ubuntu 20.04+, Debian 11+, Fedora, RHEL/CentOS 8+, Alpine, Arch, openSUSE
+- **macOS:** 12+ (Monterey) with Homebrew
+- Node.js 20+ (installed automatically by bootstrap script)
+- Git, jq, curl (installed automatically)
+- OpenClaw (installed automatically by bootstrap script)
 - Git, jq, curl
 
 ## Differences from macOS
@@ -88,24 +90,26 @@ sudo ufw deny 3120
 
 ## Installation
 
+### One-command install (recommended)
+
 ```bash
-# 1. Install Node.js 18+
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# 2. Install OpenClaw
-npm install -g openclaw
-
-# 3. Clone and setup
 git clone https://github.com/YOUR_USERNAME/heisenberg-team.git
 cd heisenberg-team
-cp .env.example .env
-# Edit .env with your values
+bash install.sh                  # Interactive
+# or
+bash install.sh --yes            # Non-interactive (VPS/CI)
+```
 
-# 4. Run setup wizard
+### Step-by-step
+
+```bash
+# 1. System deps + Node.js + OpenClaw (supports apt/dnf/yum/apk/pacman)
+bash scripts/bootstrap-install.sh
+
+# 2. Configure providers, models, API keys
 bash scripts/setup-wizard.sh
 
-# 5. Start gateway
+# 3. Start gateway
 openclaw gateway start
 ```
 

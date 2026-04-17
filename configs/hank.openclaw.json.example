@@ -8,7 +8,8 @@
   "apiKeys": {
     "anthropic": "{{ANTHROPIC_API_KEY}}",
     "openai": "{{OPENAI_API_KEY}}",
-    "deepseek": "{{DEEPSEEK_API_KEY}}"
+    "deepseek": "{{DEEPSEEK_API_KEY}}",
+    "openrouter": "{{OPENROUTER_API_KEY}}"
   },
   "memory": {
     "enabled": true,
@@ -30,6 +31,9 @@
     }
   },
   "agents": {
+    "defaults": {
+      "maxConcurrent": 2
+    },
     "remoteAgents": {
       "heisenberg": {
         "sessionKey": "agent:main:main",

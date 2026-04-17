@@ -7,7 +7,7 @@
 #   bash scripts/deploy-team.sh --force   # Overwrite existing workspaces
 #   OPENCLAW_AGENTS_DIR=/custom/path bash scripts/deploy-team.sh
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -93,7 +93,40 @@ for agent in "${AGENTS[@]}"; do
 done
 echo "  ✓ References copied"
 
+# ── Skills (shared directory + symlinks) ────────────────────────────────────────
+echo ""
+echo "📚 Setting up skills (shared directory)..."
+SHARED_SKILLS="${OPENCLAW_BASE:-$HOME/.openclaw}/skills"
+if [ -d "$REPO_DIR/skills" ]; then
+  mkdir -p "$SHARED_SKILLS"
+  SKILL_OK=0
+  for skill_dir in "$REPO_DIR/skills"/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name=$(basename "$skill_dir")
+    if cp -r "$skill_dir" "$SHARED_SKILLS/" 2>/dev/null; then
+      SKILL_OK=$((SKILL_OK + 1))
+    fi
+  done
+  echo "  ✓ $SKILL_OK skills installed to $SHARED_SKILLS"
+
+  # Create symlinks for each agent
+  for agent in "${AGENTS[@]}"; do
+    AGENT_DIR="$BASE_DIR/$agent"
+    skills_link="$AGENT_DIR/skills"
+    if [ -L "$skills_link" ]; then
+      rm -f "$skills_link"
+    elif [ -e "$skills_link" ]; then
+      rm -rf "$skills_link"
+    fi
+    ln -s "$SHARED_SKILLS" "$skills_link"
+  done
+  echo "  ✓ Symlinks created for all agents"
+else
+  echo "  ⚠ Skills directory not found at $REPO_DIR/skills"
+fi
+
 # ── Shared scripts ───────────────────────────────────────────────────────────
+echo ""
 echo "📜 Copying scripts..."
 SHARED_SCRIPTS=("self-heal.sh" "trash-agent-session.sh" "agent-health-check.sh")
 for agent in "${AGENTS[@]}"; do
@@ -139,8 +172,8 @@ echo "   ┌──────────────────────�
 echo "   │  mkdir -p ~/.openclaw/agents/<agent>                            │"
 echo "   │  cp $BASE_DIR/<agent>/openclaw.json.example \\                  │"
 echo "   │     ~/.openclaw/agents/<agent>/openclaw.json                   │"
+echo "   │  # Edit: replace API keys (ANTHROPIC, OPENAI, OPENROUTER, etc) │"
 echo "   │  # Edit: replace {{TELEGRAM_BOT_TOKEN}}, {{OWNER_TELEGRAM_ID}} │"
-echo "   │  # Edit: replace {{ANTHROPIC_API_KEY}}, {{OPENAI_API_KEY}}     │"
 echo "   └──────────────────────────────────────────────────────────────────┘"
 echo ""
 echo "3. Start agents:"

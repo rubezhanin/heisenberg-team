@@ -19,7 +19,7 @@
 
 - [ ] Добавить агента в `agents.list[]` в openclaw.json
 - [ ] Обязательные поля: `id`, `name`, `model`, `workspace`, `agentDir`
-- [ ] Модель: ПОЛНОЕ имя (`anthropic/claude-sonnet-4-6`), НЕ алиас!
+- [ ] Модель: ПОЛНОЕ имя (например `{{AGENT_MODEL_ID}}`), НЕ алиас!
 - [ ] Workspace: `~/.openclaw/agents/<id>/agent/`
 - [ ] `memorySearch.enabled`: true для рабочих, false для масок/изолированных
 - [ ] `heartbeat.every`: "0" если мониторинг не нужен

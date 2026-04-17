@@ -8,7 +8,8 @@
   "apiKeys": {
     "anthropic": "{{ANTHROPIC_API_KEY}}",
     "openai": "{{OPENAI_API_KEY}}",
-    "deepseek": "{{DEEPSEEK_API_KEY}}"
+    "deepseek": "{{DEEPSEEK_API_KEY}}",
+    "openrouter": "{{OPENROUTER_API_KEY}}"
   },
   "memory": {
     "enabled": true,
@@ -16,6 +17,14 @@
     "embedding": {
       "provider": "{{EMBEDDING_PROVIDER}}",
       "model": "{{EMBEDDING_MODEL}}"
+    }
+  },
+  "messages": {
+    "queue": {
+      "mode": "collect",
+      "debounceMs": 1000,
+      "cap": 20,
+      "drop": "summarize"
     }
   },
   "plugins": {

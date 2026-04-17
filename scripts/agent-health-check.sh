@@ -2,6 +2,7 @@
 # agent-health-check.sh — Еженедельная проверка здоровья агентов
 # Запускается Хайзенбергом (крон воскресенье 12:00)
 # Выводит ТОЛЬКО проблемы. Если всё чисто — "✅ Все проверки пройдены"
+set -euo pipefail
 
 WORKSPACE="${WORKSPACE_PATH:-$HOME/workspace}"
 AGENTS_DIR="$HOME/.openclaw/agents"

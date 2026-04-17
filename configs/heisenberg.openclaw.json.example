@@ -8,7 +8,8 @@
   "apiKeys": {
     "anthropic": "{{ANTHROPIC_API_KEY}}",
     "openai": "{{OPENAI_API_KEY}}",
-    "deepseek": "{{DEEPSEEK_API_KEY}}"
+    "deepseek": "{{DEEPSEEK_API_KEY}}",
+    "openrouter": "{{OPENROUTER_API_KEY}}"
   },
   "memory": {
     "enabled": true,
@@ -18,18 +19,40 @@
       "model": "{{EMBEDDING_MODEL}}"
     }
   },
+  "messages": {
+    "queue": {
+      "mode": "collect",
+      "debounceMs": 1000,
+      "cap": 20,
+      "drop": "summarize"
+    }
+  },
   "plugins": {
     "entries": {
       "telegram": {
         "enabled": true,
         "config": {
           "botToken": "{{TELEGRAM_BOT_TOKEN_HEISENBERG}}",
-          "authorizedSenders": ["{{OWNER_TELEGRAM_ID}}"]
+          "authorizedSenders": ["{{OWNER_TELEGRAM_ID}}"],
+          "network": {
+            "autoSelectFamily": true,
+            "dnsResultOrder": "ipv4first"
+          },
+          "retry": {
+            "attempts": 3,
+            "minDelayMs": 400,
+            "maxDelayMs": 30000,
+            "jitter": 0.1
+          }
         }
       }
     }
   },
   "agents": {
+    "defaults": {
+      "maxConcurrent": 3,
+      "timeoutSeconds": 600
+    },
     "remoteAgents": {
       "saul": {
         "sessionKey": "agent:producer:main",
@@ -45,19 +68,19 @@
       },
       "skyler": {
         "sessionKey": "agent:skyler:main",
-        "description": "Finance — budgets, expenses, financial reports"
+        "description": "Finance — budgets, expenses, financial reports (silent)"
       },
       "hank": {
         "sessionKey": "agent:hank:main",
-        "description": "Security — audits, monitoring, QA"
+        "description": "Security — audits, monitoring, QA (silent)"
       },
       "gus": {
         "sessionKey": "agent:kaizen:main",
-        "description": "Kaizen — goals, habits, Obsidian, optimization"
+        "description": "Kaizen — goals, habits, Obsidian, optimization (silent)"
       },
       "twins": {
         "sessionKey": "agent:researcher:main",
-        "description": "Research — web search, monitoring, data gathering"
+        "description": "Research — web search, monitoring, data gathering (silent)"
       }
     }
   },

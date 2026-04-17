@@ -43,11 +43,11 @@ related_skills:
 ```
 Результат: файл с полной транскрипцией в `/tmp/summarize-*/`
 
-Для длинных видео (стримы 2-3ч) → спавнить субагент на Sonnet:
+Для длинных видео (стримы 2-3ч) → спавнить субагент на агентской модели:
 ```
 sessions_spawn(
   task="Вытащи транскрипцию и сделай анализ: [URL]",
-  model="anthropic/claude-sonnet-4-5",
+  model="{{AGENT_MODEL_SHORT}}",
   mode="run",
   runTimeoutSeconds=300
 )

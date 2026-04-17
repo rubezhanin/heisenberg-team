@@ -16,6 +16,12 @@ LOG_FILE="/tmp/file-hook-watcher.log"
 PROCESSED_FILE="/tmp/file-hook-processed.log"
 BOARD_HASH_FILE="/tmp/file-hook-board-hash"
 
+# Source .env if available (for model)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(dirname "$SCRIPT_DIR")"
+[ -f "$REPO_DIR/.env" ] && set -a && . "$REPO_DIR/.env" && set +a
+FILE_HOOK_MODEL="${AGENT_MODEL:-${MAIN_MODEL:-anthropic/claude-sonnet-4-6}}"
+
 echo $$ > "$PID_FILE"
 
 log() {
@@ -96,14 +102,14 @@ $new_done
     curl -s -X POST "$HOOK_URL" \
       -H "Authorization: Bearer $HOOK_TOKEN" \
       -H "Content-Type: application/json" \
-      -d "$(jq -n --arg msg "$board_message" --arg name "BoardHook" '{
+      -d "$(jq -n --arg msg "$board_message" --arg name "BoardHook" --arg model "$FILE_HOOK_MODEL" '{
         message: $msg,
         name: $name,
         wakeMode: "now",
         deliver: true,
         channel: "telegram",
         to: "{{OWNER_TELEGRAM_ID}}",
-        model: "anthropic/claude-sonnet-4-5",
+        model: $model,
         timeoutSeconds: 60
       }')" > /dev/null 2>&1
 
@@ -150,14 +156,14 @@ $done_content
   response=$(curl -s -w "\n%{http_code}" -X POST "$HOOK_URL" \
     -H "Authorization: Bearer $HOOK_TOKEN" \
     -H "Content-Type: application/json" \
-    -d "$(jq -n --arg msg "$message" --arg name "FileHook-$project_name" '{
+    -d "$(jq -n --arg msg "$message" --arg name "FileHook-$project_name" --arg model "$FILE_HOOK_MODEL" '{
       message: $msg,
       name: $name,
       wakeMode: "now",
       deliver: true,
       channel: "telegram",
       to: "{{OWNER_TELEGRAM_ID}}",
-      model: "anthropic/claude-sonnet-4-5",
+      model: $model,
       timeoutSeconds: 60
     }')")
 
