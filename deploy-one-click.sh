@@ -405,10 +405,10 @@ phase_2_install_openclaw() {
     local current_version
     current_version="$(openclaw --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "0.0.0")"
 
-    if version_gte "$current_version" "$MIN_OPENCLAW_VERSION"; then
+    if version_gte "$current_version" "$target_version"; then
       log_ok "OpenClaw уже установлен: v${current_version}"
     else
-      log_warn "OpenClaw v${current_version} устарел (нужен >= $MIN_OPENCLAW_VERSION)"
+      log_warn "OpenClaw v${current_version} устарел (нужен >= $target_version)"
       log_info "Обновляю OpenClaw..."
       npm install -g "openclaw@${target_version}"
     fi
