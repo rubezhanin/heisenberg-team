@@ -1,6 +1,9 @@
 # Archive (устаревшие файлы, не для GitHub)
 _archive/
 
+# Deployment specs (personal documentation)
+TZ-*.md
+
 # Environment
 .env
 .env.local
