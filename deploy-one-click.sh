@@ -106,12 +106,14 @@ prompt_choice() {
 }
 
 version_gte() {
+  # Возвращает 0 если $1 >= $2 (семантическое сравнение)
   local v1="$1" v2="$2"
   if [[ "$v1" == "$v2" ]]; then return 0; fi
   local IFS=.
   local i v1_parts=($v1) v2_parts=($v2)
   for ((i=0; i<${#v1_parts[@]}; i++)); do
     local p1="${v1_parts[$i]:-0}" p2="${v2_parts[$i]:-0}"
+    # Убираем нецифровые суффиксы
     p1="${p1%%[!0-9]*}"; p2="${p2%%[!0-9]*}"
     p1="${p1:-0}"; p2="${p2:-0}"
     if ((p1 > p2)); then return 0; fi
@@ -126,6 +128,7 @@ generate_token() {
   elif [[ -r /dev/urandom ]]; then
     head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
   else
+    # Fallback: date + PID + RANDOM
     echo "$(date +%s%N)$$${RANDOM}${RANDOM}" | sha256sum | cut -c1-64
   fi
 }
@@ -212,7 +215,8 @@ detect_os() {
       ;;
     Linux)
       if [[ -f /etc/os-release ]]; then
-        source /dev/null /etc/os-release
+        # shellcheck source=/dev/null
+        source /etc/os-release
         case "$ID" in
           ubuntu|debian|pop|linuxmint)   os="debian";  pkg_manager="apt" ;;
           fedora)                        os="fedora";  pkg_manager="dnf" ;;
@@ -332,6 +336,7 @@ install_node() {
     log_substep "Устанавливаю через nvm..."
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
     export NVM_DIR="$HOME/.nvm"
+    # shellcheck source=/dev/null
     [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
     nvm install "$MIN_NODE_VERSION"
     nvm use "$MIN_NODE_VERSION"
@@ -344,6 +349,7 @@ install_node() {
 }
 
 fix_npm_prefix() {
+  # На некоторых системах npm global prefix требует sudo
   local npm_prefix
   npm_prefix="$(npm prefix -g 2>/dev/null || echo "")"
 
@@ -353,9 +359,11 @@ fix_npm_prefix() {
     mkdir -p "$user_prefix"
     npm config set prefix "$user_prefix"
 
+    # Добавляем в PATH если нет
     if [[ ":$PATH:" != *":$user_prefix/bin:"* ]]; then
       export PATH="$user_prefix/bin:$PATH"
 
+      # Определяем shell RC файл
       local shell_rc=""
       if [[ -n "${ZSH_VERSION:-}" ]]; then
         shell_rc="$HOME/.zshrc"
@@ -410,6 +418,7 @@ phase_2_install_openclaw() {
     fi
   fi
 
+  # Верификация
   if [[ "$DRY_RUN" == false ]]; then
     if ! command -v openclaw &>/dev/null; then
       log_fatal "openclaw не найден после установки. Проверьте PATH."
@@ -417,6 +426,7 @@ phase_2_install_openclaw() {
     log_ok "OpenClaw: $(openclaw --version 2>/dev/null || echo 'installed')"
   fi
 
+  # Init если нет конфигурации
   if [[ ! -d "$OPENCLAW_HOME" ]]; then
     log_info "Инициализация OpenClaw..."
     if [[ "$DRY_RUN" == false ]]; then
@@ -433,27 +443,33 @@ phase_2_install_openclaw() {
 phase_3_load_config() {
   log_step "Фаза 3/10: Конфигурация"
 
+  # Загрузка .env если существует
   if [[ -f "$SCRIPT_DIR/.env" ]]; then
     log_info "Загружаю .env..."
     set -a
-    source /dev/null "$SCRIPT_DIR/.env"
+    # shellcheck source=/dev/null
+    source "$SCRIPT_DIR/.env"
     set +a
     log_ok ".env загружен"
   elif [[ "$INTERACTIVE" == false ]]; then
     log_fatal "Режим --yes требует файл .env. Скопируйте:\n  cp .env.example .env"
   fi
 
+  # ── Интерактивный визард ──
   if [[ "$INTERACTIVE" == true ]]; then
     run_wizard
   fi
 
+  # ── Валидация обязательных переменных ──
   validate_config
 
+  # ── Генерация GATEWAY_TOKEN если пусто ──
   if [[ -z "${GATEWAY_TOKEN:-}" ]]; then
     GATEWAY_TOKEN="$(generate_token)"
     log_ok "Gateway token сгенерирован (64 символа)"
   fi
 
+  # ── Сохранение .env если визард ──
   if [[ "$INTERACTIVE" == true ]]; then
     save_env_file
   fi
@@ -515,7 +531,7 @@ run_wizard() {
     openrouter) default_model="anthropic/claude-sonnet-4-20250514" ;;
     google)     default_model="gemini-2.5-pro" ;;
     deepseek)   default_model="deepseek-chat" ;;
-    ollama)    default_model="qwen2.5:32b" ;;
+    ollama)     default_model="qwen2.5:32b" ;;
   esac
   DEFAULT_MODEL="$(prompt_value DEFAULT_MODEL "Шаг 3.5/7 — Модель" "$default_model")"
   BOSS_MODEL="${BOSS_MODEL:-$DEFAULT_MODEL}"
@@ -569,15 +585,17 @@ run_wizard() {
 validate_config() {
   log_substep "Валидация конфигурации..."
 
+  # Провайдер
   DEFAULT_PROVIDER="${DEFAULT_PROVIDER:-anthropic}"
 
+  # API ключ
   if [[ "$DEFAULT_PROVIDER" != "ollama" ]]; then
     local key_value=""
     case "$DEFAULT_PROVIDER" in
       anthropic)  key_value="${ANTHROPIC_API_KEY:-}" ;;
       openai)     key_value="${OPENAI_API_KEY:-}" ;;
       openrouter) key_value="${OPENROUTER_API_KEY:-}" ;;
-      google)    key_value="${GOOGLE_API_KEY:-}" ;;
+      google)     key_value="${GOOGLE_API_KEY:-}" ;;
       deepseek)   key_value="${DEEPSEEK_API_KEY:-}" ;;
     esac
 
@@ -585,6 +603,7 @@ validate_config() {
       log_fatal "API ключ для $DEFAULT_PROVIDER не задан. Заполните .env."
     fi
 
+    # Валидация формата ключа
     case "$DEFAULT_PROVIDER" in
       anthropic)
         if [[ ! "$key_value" =~ ^sk-ant- ]]; then
@@ -604,10 +623,12 @@ validate_config() {
     esac
   fi
 
+  # Модель
   DEFAULT_MODEL="${DEFAULT_MODEL:-claude-sonnet-4-20250514}"
   BOSS_MODEL="${BOSS_MODEL:-$DEFAULT_MODEL}"
   SPECIALIST_MODEL="${SPECIALIST_MODEL:-$DEFAULT_MODEL}"
 
+  # Агенты — валидация имён
   for agent in "${SELECTED_AGENTS[@]}"; do
     local valid=false
     for known in "${ALL_AGENTS[@]}"; do
@@ -618,6 +639,7 @@ validate_config() {
     fi
   done
 
+  # Heisenberg обязателен
   local has_heisenberg=false
   for agent in "${SELECTED_AGENTS[@]}"; do
     if [[ "$agent" == "heisenberg" ]]; then has_heisenberg=true; break; fi
@@ -627,6 +649,7 @@ validate_config() {
     SELECTED_AGENTS=("heisenberg" "${SELECTED_AGENTS[@]}")
   fi
 
+  # Defaults
   OWNER_NAME="${OWNER_NAME:-User}"
   TEAM_LANG="${TEAM_LANG:-ru}"
   MAX_COST_PER_DAY="${MAX_COST_PER_DAY:-10.00}"
@@ -716,10 +739,12 @@ phase_4_backup() {
     return
   fi
 
+  # Backup агентов
   if [[ -d "$OPENCLAW_HOME/agents" ]]; then
     cp -r "$OPENCLAW_HOME/agents" "$backup_path/agents"
   fi
 
+  # Backup конфига
   for f in "$OPENCLAW_HOME"/*.json; do
     [[ -f "$f" ]] && cp "$f" "$backup_path/" || true
   done
@@ -755,9 +780,11 @@ phase_5_generate_configs() {
     [[ -n "${GOOGLE_API_KEY:-}" ]]     && api_keys_json="$(echo "$api_keys_json" | jq --arg k "$GOOGLE_API_KEY" '. + {google: $k}')"
     [[ -n "${DEEPSEEK_API_KEY:-}" ]]   && api_keys_json="$(echo "$api_keys_json" | jq --arg k "$DEEPSEEK_API_KEY" '. + {deepseek: $k}')"
 
+    # Telegram token для конкретного агента
     local bot_token_var="TELEGRAM_BOT_TOKEN_$(echo "$agent" | tr '[:lower:]' '[:upper:]')"
     local bot_token="${!bot_token_var:-}"
 
+    # Telegram конфиг
     local telegram_json="null"
     if [[ -n "$bot_token" ]]; then
       telegram_json="$(jq -n --arg token "$bot_token" '{enabled: true, botToken: $token}')"
@@ -768,6 +795,7 @@ phase_5_generate_configs() {
       continue
     fi
 
+    # Генерация JSON
     jq -n \
       --arg name "$agent" \
       --arg provider "$DEFAULT_PROVIDER" \
@@ -847,12 +875,14 @@ phase_6_deploy_workspaces() {
 
     mkdir -p "$dest"
 
+    # Копируем все .md файлы
     for md_file in "$src"/*.md; do
       [[ -f "$md_file" ]] || continue
       local filename
       filename="$(basename "$md_file")"
       local dest_file="$dest/$filename"
 
+      # Копируем и подставляем плейсхолдеры
       sed \
         -e "s|{{OWNER_NAME}}|${OWNER_NAME}|g" \
         -e "s|{{OWNER_TELEGRAM_ID}}|${OWNER_TELEGRAM_ID:-}|g" \
@@ -867,6 +897,7 @@ phase_6_deploy_workspaces() {
         "$md_file" > "$dest_file"
     done
 
+    # Копируем конфиг OpenClaw
     local config_src="$SCRIPT_DIR/configs/generated/${agent}.openclaw.json"
     if [[ -f "$config_src" ]]; then
       cp "$config_src" "$dest/openclaw.json"
@@ -897,13 +928,16 @@ phase_7_deploy_skills() {
     return
   fi
 
+  # Копируем skills в shared
   mkdir -p "$shared_dir"
   rsync -a --delete "$skills_src/" "$shared_dir/" 2>/dev/null || cp -r "$skills_src/"* "$shared_dir/"
   log_ok "Skills скопированы: $shared_dir"
 
+  # Создаём симлинки для каждого агента
   for agent in "${SELECTED_AGENTS[@]}"; do
     local agent_skills="$OPENCLAW_HOME/agents/$agent/skills"
 
+    # Удаляем старые skills если не симлинк
     if [[ -d "$agent_skills" && ! -L "$agent_skills" ]]; then
       rm -rf "$agent_skills"
     fi
@@ -912,6 +946,7 @@ phase_7_deploy_skills() {
     log_substep "Симлинк: $agent/skills → shared-skills"
   done
 
+  # Генерация CHECKSUMS
   local checksums_file="$shared_dir/CHECKSUMS.sha256"
   find "$shared_dir" -name "SKILL.md" -type f | sort | while read -r skill_file; do
     echo "$(sha256_file "$skill_file")  ${skill_file#"$shared_dir/"}"
@@ -933,10 +968,12 @@ phase_8_security_hardening() {
 
   local hardening_count=0
 
+  # ── Права на файлы ──
   for agent in "${SELECTED_AGENTS[@]}"; do
     local agent_dir="$OPENCLAW_HOME/agents/$agent"
     [[ -d "$agent_dir" ]] || continue
 
+    # SOUL.md и IDENTITY.md — только чтение (защита от перезаписи агентом)
     for protected_file in SOUL.md IDENTITY.md; do
       if [[ -f "$agent_dir/$protected_file" ]]; then
         chmod 444 "$agent_dir/$protected_file"
@@ -944,6 +981,7 @@ phase_8_security_hardening() {
       fi
     done
 
+    # Конфиги с ключами — только владелец
     for secret_file in openclaw.json auth.json; do
       if [[ -f "$agent_dir/$secret_file" ]]; then
         chmod 600 "$agent_dir/$secret_file"
@@ -953,11 +991,13 @@ phase_8_security_hardening() {
   done
   log_ok "Права на файлы: $hardening_count файлов защищено"
 
+  # ── .env ──
   if [[ -f "$SCRIPT_DIR/.env" ]]; then
     chmod 600 "$SCRIPT_DIR/.env"
     log_ok ".env: chmod 600"
   fi
 
+  # ── Pre-commit hook ──
   local hooks_dir="$SCRIPT_DIR/.git/hooks"
   if [[ -d "$SCRIPT_DIR/.git" ]]; then
     mkdir -p "$hooks_dir"
@@ -965,6 +1005,7 @@ phase_8_security_hardening() {
     log_ok "Pre-commit hook установлен"
   fi
 
+  # ── Integrity baseline ──
   local integrity_file="$OPENCLAW_HOME/.integrity-baseline.sha256"
   {
     for agent in "${SELECTED_AGENTS[@]}"; do
@@ -979,6 +1020,7 @@ phase_8_security_hardening() {
   chmod 444 "$integrity_file"
   log_ok "Integrity baseline: $(wc -l < "$integrity_file") файлов"
 
+  # ── openclaw security audit (если доступна) ──
   if command -v openclaw &>/dev/null; then
     log_substep "Запуск openclaw security audit..."
     openclaw security audit 2>/dev/null || log_warn "openclaw security audit недоступен в этой версии"
@@ -991,6 +1033,7 @@ install_precommit_hook() {
 #!/usr/bin/env bash
 # Heisenberg Team: защита от утечки секретов
 
+# Проверка на коммит .env и auth.json
 BLOCKED_FILES=$(git diff --cached --name-only | grep -E '\.env$|auth\.json$|\.openclaw\.json$' || true)
 if [[ -n "$BLOCKED_FILES" ]]; then
   echo "❌ BLOCKED: Попытка закоммитить секреты:"
@@ -1000,6 +1043,7 @@ if [[ -n "$BLOCKED_FILES" ]]; then
   exit 1
 fi
 
+# Проверка на API ключи в коде
 LEAKED=$(git diff --cached -U0 | grep -E '(sk-ant-|sk-or-|sk-[a-zA-Z0-9]{20,}|gsk_[a-zA-Z0-9]+)' || true)
 if [[ -n "$LEAKED" ]]; then
   echo "❌ BLOCKED: Обнаружен API ключ в изменениях!"
@@ -1024,21 +1068,31 @@ phase_9_start_gateway() {
     return
   fi
 
+  # Проверяем, не запущен ли уже
   if openclaw gateway status &>/dev/null 2>&1; then
     log_ok "Gateway уже работает"
     return
   fi
 
+  # ── Создание service файла ──
   case "$INIT_SYSTEM" in
-    systemd)  install_systemd_service ;;
-    launchd)  install_launchd_plist ;;
-    *)        log_info "Init-система не обнаружена, запускаю gateway напрямую..." ;;
+    systemd)
+      install_systemd_service
+      ;;
+    launchd)
+      install_launchd_plist
+      ;;
+    *)
+      log_info "Init-система не обнаружена, запускаю gateway напрямую..."
+      ;;
   esac
 
+  # Запуск
   log_info "Запускаю OpenClaw Gateway..."
   openclaw gateway start &>/dev/null &
   local gw_pid=$!
 
+  # Ожидание готовности (до 30 секунд)
   local max_wait=30
   local waited=0
   while (( waited < max_wait )); do
@@ -1055,11 +1109,14 @@ phase_9_start_gateway() {
 
 install_systemd_service() {
   local service_file="/etc/systemd/system/openclaw-gateway.service"
+
   if [[ -f "$service_file" ]]; then
     log_substep "Systemd unit уже существует"
     return
   fi
 
+  local node_path
+  node_path="$(which node)"
   local openclaw_path
   openclaw_path="$(which openclaw)"
   local user
@@ -1091,6 +1148,7 @@ SERVICE
 
 install_launchd_plist() {
   local plist_file="$HOME/Library/LaunchAgents/com.openclaw.gateway.plist"
+
   if [[ -f "$plist_file" ]]; then
     log_substep "LaunchAgent уже существует"
     return
@@ -1147,65 +1205,106 @@ phase_10_smoke_test() {
   local tests_passed=0
   local tests_failed=0
 
+  # ── Test 1: openclaw в PATH ──
   if command -v openclaw &>/dev/null; then
-    log_ok "✓ openclaw в PATH"; ((tests_passed++))
+    log_ok "✓ openclaw в PATH"
+    ((tests_passed++))
   else
-    log_error "✗ openclaw не найден в PATH"; ((tests_failed++))
+    log_error "✗ openclaw не найден в PATH"
+    ((tests_failed++))
   fi
 
+  # ── Test 2: openclaw doctor ──
   if openclaw doctor &>/dev/null 2>&1; then
-    log_ok "✓ openclaw doctor — OK"; ((tests_passed++))
+    log_ok "✓ openclaw doctor — OK"
+    ((tests_passed++))
   else
-    log_warn "⚠ openclaw doctor — есть замечания"; ((tests_passed++))
+    log_warn "⚠ openclaw doctor — есть замечания"
+    ((tests_passed++)) # Не фатально
   fi
 
+  # ── Test 3: Конфиги существуют ──
   local configs_ok=true
   for agent in "${SELECTED_AGENTS[@]}"; do
-    if [[ ! -f "$OPENCLAW_HOME/agents/$agent/openclaw.json" ]]; then
-      log_error "✗ Конфиг отсутствует: $agent"; configs_ok=false; ((tests_failed++))
+    local config="$OPENCLAW_HOME/agents/$agent/openclaw.json"
+    if [[ ! -f "$config" ]]; then
+      log_error "✗ Конфиг отсутствует: $agent"
+      configs_ok=false
+      ((tests_failed++))
     fi
   done
-  [[ "$configs_ok" == true ]] && { log_ok "✓ Конфиги всех агентов (${#SELECTED_AGENTS[@]})"; ((tests_passed++)); }
+  if [[ "$configs_ok" == true ]]; then
+    log_ok "✓ Конфиги всех агентов на месте (${#SELECTED_AGENTS[@]})"
+    ((tests_passed++))
+  fi
 
+  # ── Test 4: Skills симлинки ──
   local skills_ok=true
   for agent in "${SELECTED_AGENTS[@]}"; do
-    local link="$OPENCLAW_HOME/agents/$agent/skills"
-    if [[ -L "$link" ]] && [[ ! -d "$(readlink "$link")" ]]; then
-      log_error "✗ Битый симлинк: $agent/skills"; skills_ok=false; ((tests_failed++))
+    local skills_link="$OPENCLAW_HOME/agents/$agent/skills"
+    if [[ -L "$skills_link" ]]; then
+      local target
+      target="$(readlink "$skills_link")"
+      if [[ ! -d "$target" ]]; then
+        log_error "✗ Битый симлинк: $agent/skills → $target"
+        skills_ok=false
+        ((tests_failed++))
+      fi
     fi
   done
-  [[ "$skills_ok" == true ]] && { log_ok "✓ Skills симлинки — OK"; ((tests_passed++)); }
+  if [[ "$skills_ok" == true ]]; then
+    log_ok "✓ Skills симлинки — OK"
+    ((tests_passed++))
+  fi
 
+  # ── Test 5: Security — gateway привязан к localhost ──
   for agent in "${SELECTED_AGENTS[@]}"; do
     local config="$OPENCLAW_HOME/agents/$agent/openclaw.json"
     if [[ -f "$config" ]]; then
       local gw_host
       gw_host="$(jq -r '.gateway.host // "0.0.0.0"' "$config" 2>/dev/null)"
       if [[ "$gw_host" == "0.0.0.0" ]]; then
-        log_error "✗ ОПАСНО: $agent gateway привязан к 0.0.0.0!"; ((tests_failed++))
+        log_error "✗ ОПАСНО: $agent gateway привязан к 0.0.0.0!"
+        ((tests_failed++))
       fi
     fi
   done
-  log_ok "✓ Gateway привязан к $GATEWAY_HOST"; ((tests_passed++))
+  log_ok "✓ Gateway привязан к $GATEWAY_HOST"
+  ((tests_passed++))
 
+  # ── Test 6: Нет API ключей в .md файлах ──
   local leaked_keys
   leaked_keys="$(grep -rlE '(sk-ant-|sk-or-|sk-[a-zA-Z0-9]{32,}|gsk_)' "$OPENCLAW_HOME/agents/" --include="*.md" 2>/dev/null || true)"
   if [[ -n "$leaked_keys" ]]; then
-    log_error "✗ API ключи в .md файлах!"; ((tests_failed++))
+    log_error "✗ API ключи обнаружены в .md файлах!"
+    echo "$leaked_keys" | head -5
+    ((tests_failed++))
   else
-    log_ok "✓ Нет утечек API ключей"; ((tests_passed++))
+    log_ok "✓ Нет утечек API ключей в workspace файлах"
+    ((tests_passed++))
   fi
 
-  [[ -f "$OPENCLAW_HOME/.integrity-baseline.sha256" ]] && { log_ok "✓ Integrity baseline"; ((tests_passed++)); }
+  # ── Test 7: Integrity baseline ──
+  if [[ -f "$OPENCLAW_HOME/.integrity-baseline.sha256" ]]; then
+    log_ok "✓ Integrity baseline создан"
+    ((tests_passed++))
+  fi
 
+  # ── Test 8: .env защищён ──
   if [[ -f "$SCRIPT_DIR/.env" ]]; then
-    local perms
-    perms="$(stat -c '%a' "$SCRIPT_DIR/.env" 2>/dev/null || stat -f '%Lp' "$SCRIPT_DIR/.env" 2>/dev/null || echo "unknown")"
-    [[ "$perms" == "600" ]] && { log_ok "✓ .env — chmod 600"; ((tests_passed++)); } || log_warn "⚠ .env права: $perms"
+    local env_perms
+    env_perms="$(stat -c '%a' "$SCRIPT_DIR/.env" 2>/dev/null || stat -f '%Lp' "$SCRIPT_DIR/.env" 2>/dev/null || echo "unknown")"
+    if [[ "$env_perms" == "600" ]]; then
+      log_ok "✓ .env — chmod 600"
+      ((tests_passed++))
+    else
+      log_warn "⚠ .env имеет права $env_perms (рекомендуется 600)"
+    fi
   fi
 
   echo ""
   echo -e "  Результат: ${GREEN}${tests_passed} passed${NC}, ${RED}${tests_failed} failed${NC}"
+
   print_report
 }
 
@@ -1215,32 +1314,67 @@ print_report() {
   echo -e "${BOLD}║            🧪 Heisenberg Team — Отчёт                    ║${NC}"
   echo -e "${BOLD}╚══════════════════════════════════════════════════════════╝${NC}"
   echo ""
-  [[ "$DRY_RUN" == true ]] && echo -e "  ${YELLOW}Режим: DRY RUN${NC}\n"
+
+  if [[ "$DRY_RUN" == true ]]; then
+    echo -e "  ${YELLOW}Режим: DRY RUN (ничего не было изменено)${NC}"
+    echo ""
+  fi
+
   echo -e "  ${BOLD}Провайдер:${NC}     $DEFAULT_PROVIDER"
   echo -e "  ${BOLD}Boss модель:${NC}   $BOSS_MODEL"
   echo -e "  ${BOLD}Specialist:${NC}    $SPECIALIST_MODEL"
   echo -e "  ${BOLD}Gateway:${NC}       ${GATEWAY_HOST}:${GATEWAY_PORT}"
   echo -e "  ${BOLD}Лимит:${NC}         \$${MAX_COST_PER_DAY}/день"
-  echo -e "\n  ${BOLD}Агенты (${#SELECTED_AGENTS[@]}):${NC}"
+  echo ""
+  echo -e "  ${BOLD}Агенты (${#SELECTED_AGENTS[@]}):${NC}"
 
   for agent in "${SELECTED_AGENTS[@]}"; do
-    local vis="VISIBLE"
-    for s in "${SILENT_AGENTS[@]}"; do [[ "$agent" == "$s" ]] && vis="SILENT" && break; done
-    [[ "$agent" == "heisenberg" ]] && vis="MAIN"
-    local icon="🔇"; [[ "$vis" == "VISIBLE" ]] && icon="👁 "; [[ "$vis" == "MAIN" ]] && icon="🧪"
-    echo -e "    $icon  $agent ($vis)"
+    local visibility="VISIBLE"
+    for s in "${SILENT_AGENTS[@]}"; do
+      if [[ "$agent" == "$s" ]]; then visibility="SILENT"; break; fi
+    done
+    if [[ "$agent" == "heisenberg" ]]; then visibility="MAIN"; fi
+
+    local icon="🔇"
+    if [[ "$visibility" == "VISIBLE" ]]; then icon="👁 "; fi
+    if [[ "$visibility" == "MAIN" ]]; then icon="🧪"; fi
+
+    echo -e "    $icon  $agent ($visibility)"
   done
 
-  (( ${#WARNINGS[@]} > 0 )) && { echo -e "\n  ${YELLOW}⚠ Предупреждения:${NC}"; for w in "${WARNINGS[@]}"; do echo "    - $w"; done; }
-  (( ${#ERRORS[@]} > 0 ))   && { echo -e "\n  ${RED}❌ Ошибки:${NC}"; for e in "${ERRORS[@]}"; do echo "    - $e"; done; }
+  # Предупреждения
+  if [[ ${#WARNINGS[@]} -gt 0 ]]; then
+    echo ""
+    echo -e "  ${YELLOW}⚠ Предупреждения:${NC}"
+    for w in "${WARNINGS[@]}"; do
+      echo -e "    - $w"
+    done
+  fi
 
-  echo -e "\n  ${BOLD}Следующие шаги:${NC}"
-  echo -e "    1. ${CYAN}openclaw gateway status${NC}"
-  echo -e "    2. ${CYAN}cat docs/first-task.md${NC}"
-  echo -e "    3. ${CYAN}bash scripts/orchestration-audit.sh${NC}"
-  echo -e "    4. ${CYAN}bash scripts/agent-health-check.sh${NC}"
-  [[ -z "${TELEGRAM_BOT_TOKEN_HEISENBERG:-}" ]] && echo -e "\n  ${DIM}Telegram не настроен. Добавьте bot token в .env.${NC}"
-  echo -e "\n${DIM}  v$SCRIPT_VERSION | $(date)${NC}\n"
+  # Ошибки
+  if [[ ${#ERRORS[@]} -gt 0 ]]; then
+    echo ""
+    echo -e "  ${RED}❌ Ошибки:${NC}"
+    for e in "${ERRORS[@]}"; do
+      echo -e "    - $e"
+    done
+  fi
+
+  echo ""
+  echo -e "  ${BOLD}Следующие шаги:${NC}"
+  echo -e "    1. Проверьте статус:    ${CYAN}openclaw gateway status${NC}"
+  echo -e "    2. Первая задача:       ${CYAN}cat docs/first-task.md${NC}"
+  echo -e "    3. Аудит оркестрации:   ${CYAN}bash scripts/orchestration-audit.sh${NC}"
+  echo -e "    4. Health check:        ${CYAN}bash scripts/agent-health-check.sh${NC}"
+
+  if [[ -z "${TELEGRAM_BOT_TOKEN_HEISENBERG:-}" ]]; then
+    echo ""
+    echo -e "  ${DIM}Telegram не настроен. Добавьте bot token в .env позже.${NC}"
+  fi
+
+  echo ""
+  echo -e "${DIM}  Версия скрипта: $SCRIPT_VERSION | $(date)${NC}"
+  echo ""
 }
 
 # ============================================================================
@@ -1249,13 +1383,16 @@ print_report() {
 
 main() {
   echo -e "\n${BOLD}🧪 Heisenberg Team — One-Click Deploy v${SCRIPT_VERSION}${NC}\n"
+
   parse_args "$@"
 
+  # Проверяем, что мы в корне проекта
   if [[ ! -f "$SCRIPT_DIR/AGENTS.md" && ! -d "$SCRIPT_DIR/agents" ]]; then
+    # Может мы не в корне — ищем
     if [[ -f "./AGENTS.md" && -d "./agents" ]]; then
       SCRIPT_DIR="$(pwd)"
     else
-      log_fatal "Запустите из корня проекта heisenberg-team"
+      log_fatal "Запустите из корня проекта heisenberg-team\n  cd heisenberg-team && bash deploy-one-click.sh"
     fi
   fi
 
@@ -1270,7 +1407,9 @@ main() {
   phase_9_start_gateway
   phase_10_smoke_test
 
-  [[ ${#ERRORS[@]} -gt 0 ]] && exit 1
+  if [[ ${#ERRORS[@]} -gt 0 ]]; then
+    exit 1
+  fi
 }
 
 main "$@"

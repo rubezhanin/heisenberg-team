@@ -104,6 +104,7 @@ fix_from_source() {
     fi
 
     if [[ "$actual_hash" != "$expected_hash" ]]; then
+      # Ищем оригинал в репозитории
       local src_path="$SCRIPT_DIR/$rel_path"
       if [[ -f "$src_path" ]]; then
         cp "$src_path" "$full_path"
@@ -120,6 +121,7 @@ fix_from_source() {
   echo -e "Восстановлено: $fixed файлов"
 }
 
+# ── Main ──
 case "${1:-}" in
   --update) update_baseline ;;
   --fix)    fix_from_source ;;

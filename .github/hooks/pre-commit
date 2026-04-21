@@ -25,6 +25,7 @@ fi
 # ── Проверка на API ключи в любых файлах ──
 STAGED_DIFF=$(git diff --cached -U0 2>/dev/null || true)
 if [[ -n "$STAGED_DIFF" ]]; then
+  # Паттерны API ключей основных провайдеров
   LEAKED=$(echo "$STAGED_DIFF" | grep -E \
     '(sk-ant-api[0-9]+-[A-Za-z0-9]{40,}|sk-[A-Za-z0-9]{20,}|sk-or-v1-[A-Za-z0-9]{40,}|gsk_[A-Za-z0-9]{20,}|AIzaSy[A-Za-z0-9_-]{33})' \
     || true)
@@ -38,14 +39,16 @@ if [[ -n "$STAGED_DIFF" ]]; then
   fi
 fi
 
-# ── Проверка на персональные данные ──
+# ── Проверка на персональные данные (если depersonalize.sh доступен) ──
 if [[ -x "scripts/depersonalize.sh" ]]; then
   STAGED_MD=$(git diff --cached --name-only -- '*.md' || true)
   if [[ -n "$STAGED_MD" ]]; then
+    # Проверяем только staged .md файлы на оставшиеся плейсхолдеры
     for f in $STAGED_MD; do
       if git show ":$f" 2>/dev/null | grep -qE '@[a-zA-Z0-9]+\.(com|ru|org)' 2>/dev/null; then
         echo -e "${RED}⚠ WARNING: Возможно email в $f${NC}"
         echo "Проверьте: bash scripts/depersonalize.sh --check-only"
+        # Не блокируем, только предупреждаем
       fi
     done
   fi
