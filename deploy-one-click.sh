@@ -16,7 +16,7 @@ IFS=$'\n\t'
 # ── Версия и константы ──────────────────────────────────────────────────────
 readonly SCRIPT_VERSION="1.0.0"
 readonly MIN_NODE_VERSION="20"
-readonly MIN_OPENCLAW_VERSION="2026.4.12"
+readonly MIN_OPENCLAW_VERSION="2026.4.14"
 readonly DEFAULT_GATEWAY_PORT="18789"
 
 # OPENCLAW_HOME и WORKSPACE_PATH — НЕ readonly, т.к. перезаписываются из .env
