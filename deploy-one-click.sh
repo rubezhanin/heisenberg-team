@@ -1037,10 +1037,10 @@ phase_8_security_hardening() {
   chmod 444 "$integrity_file"
   log_ok "Integrity baseline: $(wc -l < "$integrity_file") файлов"
 
-  # ── openclaw security audit (если доступна) ──
+  # ── openclaw security audit (если доступна, с таймаутом) ──
   if command -v openclaw &>/dev/null; then
-    log_substep "Запуск openclaw security audit..."
-    openclaw security audit 2>/dev/null || log_warn "openclaw security audit недоступен в этой версии"
+    log_substep "Проверка openclaw security audit..."
+    timeout 10 openclaw security audit &>/dev/null || log_warn "openclaw security audit недоступен или таймаут"
   fi
 }
 
