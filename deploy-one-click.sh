@@ -1003,10 +1003,10 @@ phase_8_security_hardening() {
         log_substep "Устанавливаю chmod 444 для $file_path"
         if chmod 444 "$file_path"; then
           log_substep "chmod 444 успешно для $file_path"
-          ((hardening_count++))
+          ((hardening_count++)) || true
           log_substep "После chmod успеха, перед проверкой следующего условия"
         else
-          log_err "Не удалось выполнить chmod 444 для $file_path: $?"
+          log_error "Не удалось выполнить chmod 444 для $file_path: $?"
         fi
       else
         log_substep "Файл не найден: $file_path"
@@ -1028,10 +1028,10 @@ phase_8_security_hardening() {
         log_substep "Устанавливаю chmod 600 для $file_path"
         if chmod 600 "$file_path"; then
           log_substep "chmod 600 успешно для $file_path"
-          ((hardening_count++))
+          ((hardening_count++)) || true
           log_substep "После chmod успеха для конфига, перед проверкой следующего условия"
         else
-          log_err "Не удалось выполнить chmod 600 для $file_path: $?"
+          log_error "Не удалось выполнить chmod 600 для $file_path: $?"
         fi
       else
         log_substep "Конфиг не найден: $file_path"
