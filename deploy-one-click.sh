@@ -18,9 +18,11 @@ readonly SCRIPT_VERSION="1.0.0"
 readonly MIN_NODE_VERSION="20"
 readonly MIN_OPENCLAW_VERSION="2026.4.12"
 readonly DEFAULT_GATEWAY_PORT="18789"
-readonly OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
-readonly WORKSPACE_PATH="${WORKSPACE_PATH:-$HOME/workspace}"
-readonly BACKUP_DIR="$OPENCLAW_HOME/backups"
+
+# OPENCLAW_HOME и WORKSPACE_PATH — НЕ readonly, т.к. перезаписываются из .env
+OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
+WORKSPACE_PATH="${WORKSPACE_PATH:-$HOME/workspace}"
+BACKUP_DIR="$OPENCLAW_HOME/backups"
 
 # ── Цвета ───────────────────────────────────────────────────────────────────
 if [[ -t 1 ]]; then
@@ -656,6 +658,9 @@ validate_config() {
   MAX_COST_PER_DAY="${MAX_COST_PER_DAY:-10.00}"
   GATEWAY_HOST="${GATEWAY_HOST:-127.0.0.1}"
   GATEWAY_PORT="${GATEWAY_PORT:-$DEFAULT_GATEWAY_PORT}"
+
+  # Пересчитываем BACKUP_DIR т.к. OPENCLAW_HOME мог измениться из .env
+  BACKUP_DIR="$OPENCLAW_HOME/backups"
 
   log_ok "Конфигурация валидна"
   log_substep "Провайдер: $DEFAULT_PROVIDER | Модель: $DEFAULT_MODEL"
