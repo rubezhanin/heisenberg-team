@@ -993,8 +993,10 @@ phase_8_security_hardening() {
     [[ -d "$agent_dir" ]] || { log_warn "Директория агента не найдена: $agent_dir"; continue; }
 
     # SOUL.md и IDENTITY.md — только чтение (защита от перезаписи агентом)
+    log_substep "Начинаю обработку SOUL.md и IDENTITY.md для агента $agent"
     for protected_file in SOUL.md IDENTITY.md; do
       local file_path="$agent_dir/$protected_file"
+      log_substep "Проверяю файл: $file_path (protected_file=$protected_file)"
       if [[ -f "$file_path" ]]; then
         log_substep "Устанавливаю chmod 444 для $file_path"
         if chmod 444 "$file_path"; then
@@ -1007,10 +1009,13 @@ phase_8_security_hardening() {
         log_substep "Файл не найден: $file_path"
       fi
     done
+    log_substep "Завершил обработку SOUL.md и IDENTITY.md для агента $agent"
 
     # Конфиги с ключами — только владелец
+    log_substep "Начинаю обработку конфигов с ключами для агента $agent"
     for secret_file in openclaw.json auth.json; do
       local file_path="$agent_dir/$secret_file"
+      log_substep "Проверяю конфиг: $file_path (secret_file=$secret_file)"
       if [[ -f "$file_path" ]]; then
         log_substep "Устанавливаю chmod 600 для $file_path"
         if chmod 600 "$file_path"; then
@@ -1020,9 +1025,10 @@ phase_8_security_hardening() {
           log_err "Не удалось выполнить chmod 600 для $file_path: $?"
         fi
       else
-        log_substep "Файл не найден: $file_path"
+        log_substep "Конфиг не найден: $file_path"
       fi
     done
+    log_substep "Завершил обработку конфигов с ключами для агента $agent"
   done
   log_ok "Права на файлы: $hardening_count файлов защищено"
 
