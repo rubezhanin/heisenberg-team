@@ -997,8 +997,12 @@ phase_8_security_hardening() {
       local file_path="$agent_dir/$protected_file"
       if [[ -f "$file_path" ]]; then
         log_substep "Устанавливаю chmod 444 для $file_path"
-        chmod 444 "$file_path"
-        ((hardening_count++))
+        if chmod 444 "$file_path"; then
+          log_substep "chmod 444 успешно для $file_path"
+          ((hardening_count++))
+        else
+          log_err "Не удалось выполнить chmod 444 для $file_path: $?"
+        fi
       else
         log_substep "Файл не найден: $file_path"
       fi
@@ -1009,8 +1013,12 @@ phase_8_security_hardening() {
       local file_path="$agent_dir/$secret_file"
       if [[ -f "$file_path" ]]; then
         log_substep "Устанавливаю chmod 600 для $file_path"
-        chmod 600 "$file_path"
-        ((hardening_count++))
+        if chmod 600 "$file_path"; then
+          log_substep "chmod 600 успешно для $file_path"
+          ((hardening_count++))
+        else
+          log_err "Не удалось выполнить chmod 600 для $file_path: $?"
+        fi
       else
         log_substep "Файл не найден: $file_path"
       fi
