@@ -994,7 +994,9 @@ phase_8_security_hardening() {
 
     # SOUL.md и IDENTITY.md — только чтение (защита от перезаписи агентом)
     log_substep "Начинаю обработку SOUL.md и IDENTITY.md для агента $agent"
+    log_substep "Список файлов для обработки: SOUL.md IDENTITY.md"
     for protected_file in SOUL.md IDENTITY.md; do
+      log_substep "Начало итерации для protected_file=$protected_file"
       local file_path="$agent_dir/$protected_file"
       log_substep "Проверяю файл: $file_path (protected_file=$protected_file)"
       if [[ -f "$file_path" ]]; then
@@ -1008,12 +1010,15 @@ phase_8_security_hardening() {
       else
         log_substep "Файл не найден: $file_path"
       fi
+      log_substep "Конец итерации для protected_file=$protected_file"
     done
     log_substep "Завершил обработку SOUL.md и IDENTITY.md для агента $agent"
 
     # Конфиги с ключами — только владелец
     log_substep "Начинаю обработку конфигов с ключами для агента $agent"
+    log_substep "Список конфигов для обработки: openclaw.json auth.json"
     for secret_file in openclaw.json auth.json; do
+      log_substep "Начало итерации для secret_file=$secret_file"
       local file_path="$agent_dir/$secret_file"
       log_substep "Проверяю конфиг: $file_path (secret_file=$secret_file)"
       if [[ -f "$file_path" ]]; then
@@ -1027,6 +1032,7 @@ phase_8_security_hardening() {
       else
         log_substep "Конфиг не найден: $file_path"
       fi
+      log_substep "Конец итерации для secret_file=$secret_file"
     done
     log_substep "Завершил обработку конфигов с ключами для агента $agent"
   done
