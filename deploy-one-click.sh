@@ -1004,6 +1004,7 @@ phase_8_security_hardening() {
         if chmod 444 "$file_path"; then
           log_substep "chmod 444 успешно для $file_path"
           ((hardening_count++))
+          log_substep "После chmod успеха, перед проверкой следующего условия"
         else
           log_err "Не удалось выполнить chmod 444 для $file_path: $?"
         fi
@@ -1011,8 +1012,10 @@ phase_8_security_hardening() {
         log_substep "Файл не найден: $file_path"
       fi
       log_substep "Конец итерации для protected_file=$protected_file"
+      log_substep "Маркер после конца итерации для $protected_file"
     done
     log_substep "Завершил обработку SOUL.md и IDENTITY.md для агента $agent"
+    log_substep "Маркер после завершения обработки SOUL/IDENTITY для агента $agent"
 
     # Конфиги с ключами — только владелец
     log_substep "Начинаю обработку конфигов с ключами для агента $agent"
@@ -1026,6 +1029,7 @@ phase_8_security_hardening() {
         if chmod 600 "$file_path"; then
           log_substep "chmod 600 успешно для $file_path"
           ((hardening_count++))
+          log_substep "После chmod успеха для конфига, перед проверкой следующего условия"
         else
           log_err "Не удалось выполнить chmod 600 для $file_path: $?"
         fi
@@ -1033,8 +1037,10 @@ phase_8_security_hardening() {
         log_substep "Конфиг не найден: $file_path"
       fi
       log_substep "Конец итерации для secret_file=$secret_file"
+      log_substep "Маркер после конца итерации для конфига $secret_file"
     done
     log_substep "Завершил обработку конфигов с ключами для агента $agent"
+    log_substep "Маркер после завершения обработки конфигов для агента $agent"
   done
   log_ok "Права на файлы: $hardening_count файлов защищено"
 
