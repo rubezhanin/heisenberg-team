@@ -986,66 +986,98 @@ phase_8_security_hardening() {
   local hardening_count=0
 
   # ── Права на файлы ──
+  log_substep "Начинаю обработку прав на файлы для агентов: ${SELECTED_AGENTS[*]}"
   for agent in "${SELECTED_AGENTS[@]}"; do
+    log_substep "Обрабатываю агента: $agent"
     local agent_dir="$OPENCLAW_HOME/agents/$agent"
-    [[ -d "$agent_dir" ]] || continue
+    [[ -d "$agent_dir" ]] || { log_warn "Директория агента не найдена: $agent_dir"; continue; }
 
     # SOUL.md и IDENTITY.md — только чтение (защита от перезаписи агентом)
     for protected_file in SOUL.md IDENTITY.md; do
-      if [[ -f "$agent_dir/$protected_file" ]]; then
-        chmod 444 "$agent_dir/$protected_file"
+      local file_path="$agent_dir/$protected_file"
+      if [[ -f "$file_path" ]]; then
+        log_substep "Устанавливаю chmod 444 для $file_path"
+        chmod 444 "$file_path"
         ((hardening_count++))
+      else
+        log_substep "Файл не найден: $file_path"
       fi
     done
 
     # Конфиги с ключами — только владелец
     for secret_file in openclaw.json auth.json; do
-      if [[ -f "$agent_dir/$secret_file" ]]; then
-        chmod 600 "$agent_dir/$secret_file"
+      local file_path="$agent_dir/$secret_file"
+      if [[ -f "$file_path" ]]; then
+        log_substep "Устанавливаю chmod 600 для $file_path"
+        chmod 600 "$file_path"
         ((hardening_count++))
+      else
+        log_substep "Файл не найден: $file_path"
       fi
     done
   done
   log_ok "Права на файлы: $hardening_count файлов защищено"
 
   # ── .env ──
+  log_substep "Проверяю наличие .env"
   if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    log_substep "Устанавливаю chmod 600 для .env"
     chmod 600 "$SCRIPT_DIR/.env"
     log_ok ".env: chmod 600"
+  else
+    log_warn ".env не найден"
   fi
 
   # ── Pre-commit hook ──
+  log_substep "Проверяю наличие .git директории"
   local hooks_dir="$SCRIPT_DIR/.git/hooks"
   if [[ -d "$SCRIPT_DIR/.git" ]]; then
+    log_substep "Создаю директорию хуков: $hooks_dir"
     mkdir -p "$hooks_dir"
+    log_substep "Устанавливаю pre-commit hook"
     install_precommit_hook "$hooks_dir"
     log_ok "Pre-commit hook установлен"
+  else
+    log_warn "Git репозиторий не найден, пропускаю pre-commit hook"
   fi
 
   # ── Integrity baseline ──
+  log_substep "Создаю файл целостности"
   local integrity_file="$OPENCLAW_HOME/.integrity-baseline.sha256"
   {
+    log_substep "Собираю хеши для файлов целостности"
     for agent in "${SELECTED_AGENTS[@]}"; do
       local agent_dir="$OPENCLAW_HOME/agents/$agent"
+      [[ -d "$agent_dir" ]] || continue
       for check_file in SOUL.md IDENTITY.md; do
-        if [[ -f "$agent_dir/$check_file" ]]; then
+        local file_path="$agent_dir/$check_file"
+        if [[ -f "$file_path" ]]; then
+          log_substep "Вычисляю хеш для $file_path"
           echo "$(sha256_file "$agent_dir/$check_file")  agents/$agent/$check_file"
+        else
+          log_substep "Файл для хеширования не найден: $file_path"
         fi
       done
     done
   } > "$integrity_file"
+  log_substep "Устанавливаю права на файл целостности"
   chmod 444 "$integrity_file"
   log_ok "Integrity baseline: $(wc -l < "$integrity_file") файлов"
 
   # ── openclaw security audit (если доступна, с таймаутом) ──
-    if command -v openclaw &>/dev/null; then
-      log_substep "Проверка openclaw security audit..."
-      if command -v timeout &>/dev/null; then
-        timeout 10 openclaw security audit </dev/null &>/dev/null || log_warn "openclaw security audit недоступен или таймаут"
-      else
-        log_warn "timeout не найден, пропускаю security audit"
-      fi
+  log_substep "Проверяю наличие openclaw команды"
+  if command -v openclaw &>/dev/null; then
+    log_substep "Запускаю openclaw security audit..."
+    if command -v timeout &>/dev/null; then
+      log_substep "Запускаю с таймаутом 10 секунд и перенаправлением stdin/stdout/stderr"
+      timeout 10 openclaw security audit </dev/null &>/dev/null || log_warn "openclaw security audit недоступен или таймаут"
+    else
+      log_warn "timeout не найден, пропускаю security audit"
     fi
+  else
+    log_warn "openclaw не найден в PATH, пропускаю security audit"
+  fi
+  log_substep "Фаза 8 завершена"
 }
 
 install_precommit_hook() {
