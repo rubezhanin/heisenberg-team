@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![OpenClaw](https://img.shields.io/badge/Built%20with-OpenClaw-blue)](https://github.com/openclaw/openclaw)
 [![Agents](https://img.shields.io/badge/Agents-9-green)]()
-[![Skills](https://img.shields.io/badge/Skills-35-orange)]()
+[![Skills](https://img.shields.io/badge/Skills-34-orange)]()
 
 ---
 
@@ -61,37 +61,42 @@ graph TB
     User["👤 You (Telegram)"]
     
     subgraph team["🧪 Heisenberg Team"]
-        HB["🧪 Heisenberg<br/>Boss & Coordinator<br/><i>Opus</i>"]
+        HB["🧪 Heisenberg<br/>Boss & Coordinator"]
         
-        subgraph specialists["Specialists"]
-            Saul["💼 Saul Goodman<br/>Producer<br/><i>Sonnet</i>"]
-            Walter["👨‍🔬 Walter White<br/>Tech Lead<br/><i>Sonnet</i>"]
-            Jesse["🎯 Jesse Pinkman<br/>Marketing<br/><i>Sonnet</i>"]
-            Skyler["💰 Skyler White<br/>Finance<br/><i>Sonnet</i>"]
-            Hank["🔫 Hank Schrader<br/>Security<br/><i>Sonnet</i>"]
-            Gus["🎯 Gus Fring<br/>Kaizen/Goals<br/><i>Sonnet</i>"]
-            Twins["👥 Salamanca Twins<br/>Research<br/><i>Sonnet</i>"]
+        subgraph visible["Visible Specialists"]
+            Saul["💼 Saul<br/>Producer"]
+            Walter["👨‍🔬 Walter<br/>Tech Lead"]
+            Jesse["🎯 Jesse<br/>Marketing"]
+        end
+
+        subgraph silent["Silent Specialists"]
+            Skyler["💰 Skyler<br/>Finance"]
+            Hank["🔫 Hank<br/>Security"]
+            Gus["🎯 Gus<br/>Kaizen"]
+            Twins["👥 Twins<br/>Research"]
+            WD["🔍 Watchdog<br/>Supervisor"]
         end
         
         Board["📋 Team Board<br/><i>File-based state</i>"]
         Memory["🧠 Memory<br/><i>SQLite + Vectors</i>"]
-        Skills["⚡ 34 Skills<br/><i>PDF, XLSX, Research...</i>"]
+        Skills["⚡ 34 Skills<br/><i>PDF, Research, XLSX...</i>"]
     end
     
     User -->|"message"| HB
     HB -->|"sessions_send"| Saul
     HB -->|"sessions_send"| Walter
     HB -->|"sessions_send"| Jesse
-    HB -->|"sessions_send"| Skyler
-    HB -->|"sessions_send"| Hank
-    HB -->|"sessions_send"| Gus
-    HB -->|"sessions_send"| Twins
+    HB -.->|"silent"| Skyler
+    HB -.->|"silent"| Hank
+    HB -.->|"silent"| Gus
+    HB -.->|"silent"| Twins
+    WD -.->|"alerts"| HB
     Saul -->|"coordinate"| Board
+    HB --> Memory
+    Saul --> Memory
     Walter --> Skills
     Jesse --> Skills
     Skyler --> Skills
-    HB --> Memory
-    Saul --> Memory
     
     style HB fill:#ff6b35,stroke:#333,color:#fff
     style Saul fill:#4ecdc4,stroke:#333,color:#fff
@@ -101,10 +106,12 @@ graph TB
     style Hank fill:#ff6b6b,stroke:#333,color:#fff
     style Gus fill:#ffd93d,stroke:#333,color:#000
     style Twins fill:#6c5ce7,stroke:#333,color:#fff
+    style WD fill:#636e72,stroke:#333,color:#fff
     style Board fill:#2d3436,stroke:#333,color:#fff
     style Memory fill:#2d3436,stroke:#333,color:#fff
     style Skills fill:#2d3436,stroke:#333,color:#fff
 ```
+
 ## Агенты
 
 | Агент | Персонаж | Роль | Ключевые скиллы |
@@ -117,6 +124,7 @@ graph TB
 | **Hank** | Хэнк Шрейдер | Безопасность/QA | Аудиты, мониторинг |
 | **Gus** | Гус Фринг | Кайдзен | Кроны, самоулучшение |
 | **Twins** | Братья Саламанка | Ресёрч | Глубокий ресёрч |
+| **Watchdog** | — | Супервайзор | Зависшие сессии, алерты |
 
 ## Требования
 
@@ -132,7 +140,7 @@ graph TB
 | RAM | 2 GB | 4 GB (9 агентов) |
 | Диск | 500 MB | 2 GB (с логами/памятью) |
 | ОС | macOS 11+, Ubuntu 20.04+, Windows 11 (WSL2) | macOS 13+ или Ubuntu 22.04+ |
-| Node.js | 18.x | 20.x+ |
+| Node.js | 20.x+ | 20.x+ |
 | Сеть | Необходима (вызовы LLM API) | Широкополосный доступ |
 
 ## Быстрый старт
@@ -197,11 +205,14 @@ bash deploy-one-click.sh --attach-existing
 heisenberg-team/
 ├── agents/          # 9 агентов (8 + watchdog)
 ├── skills/          # 34 общих скиллов
-├── scripts/         # Утилиты
+├── scripts/         # Утилиты и автоматизация
+├── configs/         # Шаблоны конфигов OpenClaw
 ├── references/      # Конституция команды, стандарты
 ├── examples/        # Кукбуки и гайды
 ├── docs/            # Архитектура, FAQ
-└── assets/          # Картинки для документации
+├── deploy-one-click.sh  # One-click развёртывание (точка входа)
+├── install.sh       # Обёртка для curl | bash
+└── IMPROVEMENTS.md  # Полный changelog
 ```
 
 ## Примеры

@@ -1,3 +1,6 @@
+# Archive (устаревшие файлы, не для GitHub)
+_archive/
+
 # Environment
 .env
 .env.local

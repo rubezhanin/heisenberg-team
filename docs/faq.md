@@ -28,9 +28,9 @@ Yes. Edit `SOUL.md` and `AGENTS.md` in each agent directory to change the langua
 3. Check permissions: `ls -la ~/.openclaw/agents/`
 
 ### I see `{{PLACEHOLDER}}` in agent messages
-You have unfilled placeholders. Run the setup wizard:
+You have unfilled placeholders. Re-run the deploy script:
 ```bash
-bash scripts/setup-wizard.sh
+bash deploy-one-click.sh
 ```
 Or find them manually:
 ```bash
@@ -49,7 +49,7 @@ Skills must be in the agent's skills directory:
 ```bash
 ls ~/.openclaw/agents/producer/agent/skills/
 ```
-If empty, re-run `bash scripts/setup.sh`.
+If empty, re-run `bash deploy-one-click.sh`.
 
 ### Telegram notifications don't work
 1. Verify your Telegram user ID is set (digits only, get from @userinfobot)
@@ -57,7 +57,7 @@ If empty, re-run `bash scripts/setup.sh`.
 3. Make sure you've started a chat with your bot first
 
 ### How do I know which `{{PLACEHOLDER}}` to fill?
-The setup wizard (`scripts/setup-wizard.sh`) handles the most important ones. For the full list, see `.env.example` and run:
+The deploy script handles placeholders automatically. For the full list, see `.env.example` and run:
 ```bash
 grep -rn '{{[A-Z_]*}}' . --include='*.md' | grep -v node_modules | sort -u -t: -k3
 ```

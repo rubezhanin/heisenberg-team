@@ -1,6 +1,6 @@
 #!/bin/bash
 # init-workspace.sh — Create workspace directory structure for all agents
-# Run AFTER setup-wizard.sh to create directories that agents expect
+# Run AFTER deploy-one-click.sh to create directories that agents expect
 set -euo pipefail
 
 WORKSPACE="${WORKSPACE_PATH:-$HOME/workspace}"

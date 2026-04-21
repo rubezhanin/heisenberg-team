@@ -101,14 +101,14 @@ bash deploy-one-click.sh --attach-existing --agents heisenberg,walter
 bash deploy-one-click.sh --dry-run
 ```
 
-### 6) Legacy scripts (still supported)
+### 6) Legacy scripts (перемещены в _archive/)
 
-All legacy scripts (`scripts/setup.sh`, `scripts/deploy-team.sh`, `scripts/bootstrap-install.sh`) are now wrappers that delegate to `deploy-one-click.sh`:
+Старые скрипты (`setup.sh`, `deploy-team.sh`, `bootstrap-install.sh`, `setup-wizard.sh`, `smoke-test.sh`) перемещены в `_archive/`. Используйте `deploy-one-click.sh` напрямую:
 
 ```bash
-bash scripts/setup.sh             # → deploy-one-click.sh
-bash scripts/deploy-team.sh       # → deploy-one-click.sh
-bash scripts/bootstrap-install.sh # → deploy-one-click.sh --attach-existing
+bash deploy-one-click.sh             # Полное развёртывание (вместо setup.sh)
+bash deploy-one-click.sh --yes       # Non-interactive (вместо bootstrap + wizard)
+bash deploy-one-click.sh --dry-run   # Проверка (вместо smoke-test.sh)
 ```
 
 ```bash
@@ -187,23 +187,14 @@ These placeholders appear in individual agent files and are optional:
 ```bash
 # One-click (рекомендуется — делает шаги 1-4 автоматически):
 bash deploy-one-click.sh
-
-# Или вручную через обёртку:
-bash scripts/setup.sh
 ```
 
-### Step 5: Start and Verify
+### Step 5: Verify
 
 ```bash
 openclaw gateway start
 openclaw status
-bash scripts/smoke-test.sh
-```
-
-For partial installs:
-
-```bash
-bash scripts/smoke-test.sh --agents heisenberg,saul,walter
+bash deploy-one-click.sh --attach-existing --dry-run
 ```
 
 You should see 9 agents:

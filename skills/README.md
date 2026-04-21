@@ -1,6 +1,6 @@
 # Skills Library
 
-35 shared skills available to all agents. Skills are instruction sets that agents load based on task matching.
+34 shared skills available to all agents. Skills are instruction sets that agents load based on task matching.
 
 ## How Skills Work
 

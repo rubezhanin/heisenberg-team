@@ -37,7 +37,7 @@ for agent in "${AGENTS[@]}"; do
   # Check workspace exists
   if [ ! -d "$AGENT_DIR" ]; then
     echo "⚠️  $agent: workspace not found at $AGENT_DIR — skipping"
-    echo "   Run: bash scripts/deploy-team.sh"
+    echo "   Run: bash deploy-one-click.sh"
     SKIPPED=$((SKIPPED + 1))
     continue
   fi

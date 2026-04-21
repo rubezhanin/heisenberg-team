@@ -4,7 +4,7 @@ This guide walks you through sending your first task to the Heisenberg Team afte
 
 ## Prerequisites
 
-- Setup wizard completed (`bash scripts/setup-wizard.sh`)
+- Setup completed (`bash deploy-one-click.sh`)
 - OpenClaw gateway running (`openclaw gateway start`)
 - Telegram bot configured (or other messaging channel)
 

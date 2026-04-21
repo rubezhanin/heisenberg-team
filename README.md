@@ -7,7 +7,7 @@ Production-ready: universal installer, multi-provider support, orchestration wit
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![OpenClaw](https://img.shields.io/badge/Built%20with-OpenClaw-blue)](https://github.com/openclaw/openclaw)
 [![Agents](https://img.shields.io/badge/Agents-9-green)]()
-[![Skills](https://img.shields.io/badge/Skills-35-orange)]()
+[![Skills](https://img.shields.io/badge/Skills-34-orange)]()
 
 ---
 
@@ -96,22 +96,26 @@ graph TB
             WD["🔍 Watchdog<br/>Supervisor"]
         end
         
-        Board["📋 Team Board"]
-        Memory["🧠 Memory"]
-        Skills["⚡ 35 Skills"]
+        Board["📋 Team Board<br/><i>File-based state</i>"]
+        Memory["🧠 Memory<br/><i>SQLite + Vectors</i>"]
+        Skills["⚡ 34 Skills<br/><i>PDF, Research, XLSX...</i>"]
     end
     
-    User -->|"ingress"| HB
-    HB -->|"sessions_spawn"| Saul
-    HB -->|"sessions_spawn"| Walter
-    HB -->|"sessions_spawn"| Jesse
-    HB -.->|"silent return"| Skyler
-    HB -.->|"silent return"| Hank
-    HB -.->|"silent return"| Gus
-    HB -.->|"silent return"| Twins
+    User -->|"message"| HB
+    HB -->|"sessions_send"| Saul
+    HB -->|"sessions_send"| Walter
+    HB -->|"sessions_send"| Jesse
+    HB -.->|"silent"| Skyler
+    HB -.->|"silent"| Hank
+    HB -.->|"silent"| Gus
+    HB -.->|"silent"| Twins
     WD -.->|"alerts"| HB
     Saul -->|"coordinate"| Board
+    HB --> Memory
+    Saul --> Memory
     Walter --> Skills
+    Jesse --> Skills
+    Skyler --> Skills
     
     style HB fill:#ff6b35,stroke:#333,color:#fff
     style Saul fill:#4ecdc4,stroke:#333,color:#fff
@@ -122,6 +126,9 @@ graph TB
     style Gus fill:#ffd93d,stroke:#333,color:#000
     style Twins fill:#6c5ce7,stroke:#333,color:#fff
     style WD fill:#636e72,stroke:#333,color:#fff
+    style Board fill:#2d3436,stroke:#333,color:#fff
+    style Memory fill:#2d3436,stroke:#333,color:#fff
+    style Skills fill:#2d3436,stroke:#333,color:#fff
 ```
 
 ## Agents
@@ -182,9 +189,9 @@ bash deploy-one-click.sh --attach-existing
 
 Если предпочитаете пошаговую установку, смотрите [SETUP.md](SETUP.md).
 
-## Skills (35)
+## Skills (34)
 
-The team shares a library of 35 skills covering:
+The team shares a library of 34 skills covering:
 
 - **Content:** copywriter, youtube-seo, presentation, pptx-generator
 - **Research:** researcher, deep-research-pro, channel-analyzer, reddit
@@ -201,7 +208,7 @@ Full list with dependencies in [skills/README.md](skills/README.md).
 ```
 heisenberg-team/
 ├── agents/          # 9 agents (8 + watchdog), each with config files
-├── skills/          # 35 shared skills
+├── skills/          # 34 shared skills
 ├── scripts/         # Utility and automation scripts
 ├── configs/         # OpenClaw config templates
 ├── references/      # Team constitution, standards
@@ -235,7 +242,7 @@ bash install.sh             # Same (works from curl | bash)
 - [Agent Roles](docs/agent-roles.md) - what each agent does
 - [Linux Setup](docs/linux-setup.md) - running on Ubuntu/Debian/Alpine/Fedora/Arch
 - [FAQ](docs/faq.md) - common questions and troubleshooting
-- [Skills Index](skills/README.md) - all 35 skills with dependencies
+- [Skills Index](skills/README.md) - all 34 skills with dependencies
 - [Improvements](IMPROVEMENTS.md) - full changelog of all changes
 
 ## Contributing

@@ -103,14 +103,8 @@ bash install.sh --yes            # Non-interactive (VPS/CI)
 ### Step-by-step
 
 ```bash
-# 1. System deps + Node.js + OpenClaw (supports apt/dnf/yum/apk/pacman)
-bash scripts/bootstrap-install.sh
-
-# 2. Configure providers, models, API keys
-bash scripts/setup-wizard.sh
-
-# 3. Start gateway
-openclaw gateway start
+# One-click (installs deps, configures, deploys, starts):
+bash deploy-one-click.sh
 ```
 
 ## Troubleshooting

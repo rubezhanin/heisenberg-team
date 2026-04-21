@@ -61,7 +61,7 @@ Run the automated deploy script:
 
 ```bash
 cd ~/Desktop/heisenberg-team
-bash scripts/deploy-team.sh
+bash deploy-one-click.sh
 ```
 
 This creates `~/openclaw-agents/<agent>/` for each agent with the full directory structure.

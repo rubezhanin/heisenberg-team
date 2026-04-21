@@ -28,10 +28,10 @@ git clone https://github.com/{{GITHUB_ORG}}/heisenberg-team.git
 cd heisenberg-team
 ```
 
-## Step 2: Run Setup Wizard
+## Step 2: Run Deploy
 
 ```bash
-bash scripts/setup-wizard.sh
+bash deploy-one-click.sh
 ```
 
 The wizard will:
@@ -67,8 +67,7 @@ Update your existing `~/.openclaw/openclaw.json` - add the `agents.remoteAgents`
 If you want to keep your current install and add only a few team members first, run:
 
 ```bash
-bash scripts/setup.sh --attach-existing --agents heisenberg,saul,walter
-bash scripts/smoke-test.sh --agents heisenberg,saul,walter
+bash deploy-one-click.sh --attach-existing --agents heisenberg,saul,walter
 ```
 
 ### Option B: Fresh start with Heisenberg as main agent
@@ -128,7 +127,7 @@ openclaw gateway start
 
 Or use the deploy script:
 ```bash
-bash scripts/deploy-team.sh
+bash deploy-one-click.sh
 ```
 
 See [deploy-agents.md](deploy-agents.md) for detailed multi-agent setup.
