@@ -1,24 +1,33 @@
 #!/bin/bash
 # smoke-test.sh — Quick verification that Heisenberg Team is correctly installed
+# Синхронизирован с фазой 10 deploy-one-click.sh
+# Standalone: можно запускать отдельно после deploy-one-click.sh
 set -euo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
 NC='\033[0m'
 
 ERRORS=0
 WARNINGS=0
 SELECTED_AGENTS=""
-ALL_AGENTS=(heisenberg saul walter jesse skyler hank gus twins)
+ALL_AGENTS=(heisenberg saul walter jesse skyler hank gus twins watchdog)
 TARGET_AGENTS=()
+
+# ── Paths ──
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(dirname "$SCRIPT_DIR")"
+OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
 
 usage() {
   cat <<'EOF'
 Usage: bash scripts/smoke-test.sh [options]
 
 Options:
-  --agents a,b,c   Check only selected character directories
+  --agents a,b,c   Check only selected agents
   --help           Show this help
 EOF
 }
@@ -51,103 +60,105 @@ else
 fi
 
 echo ""
-echo "Heisenberg Team - Smoke Test"
+echo -e "${BOLD}Heisenberg Team — Smoke Test${NC}"
 echo "================================="
 echo ""
 echo "Agents under test: ${TARGET_AGENTS[*]}"
 echo ""
 
-# 1. Check critical files
-echo "Checking critical files..."
-for f in agents/heisenberg/AGENTS.md agents/heisenberg/SOUL.md agents/heisenberg/IDENTITY.md \
-         references/team-constitution.md references/team-board.md.example \
-         README.md LICENSE SETUP.md; do
-  if [ -f "$f" ]; then
+# 1. Check critical files in repo
+echo -e "${BOLD}📁 1. Critical repo files${NC}"
+for f in AGENTS.md references/team-constitution.md references/team-board.md.example README.md LICENSE; do
+  if [ -f "$REPO_DIR/$f" ]; then
     echo -e "  ${GREEN}OK${NC} $f"
   else
     echo -e "  ${RED}FAIL${NC} $f MISSING"
     ERRORS=$((ERRORS + 1))
   fi
 done
-
 echo ""
 
 # 2. Check selected agents
-echo "Checking agents..."
+echo -e "${BOLD}👤 2. Agent files${NC}"
+REQUIRED_AGENT_FILES="AGENTS.md SOUL.md IDENTITY.md TOOLS.md MEMORY.md BOOTSTRAP.md HEARTBEAT.md"
 for agent in "${TARGET_AGENTS[@]}"; do
-  dir="agents/$agent"
-  if [ -d "$dir" ] && [ -f "$dir/AGENTS.md" ] && [ -f "$dir/SOUL.md" ]; then
-    echo -e "  ${GREEN}OK${NC} $agent"
-  else
-    echo -e "  ${RED}FAIL${NC} $agent - missing files"
+  dir="$REPO_DIR/agents/$agent"
+  if [ ! -d "$dir" ]; then
+    echo -e "  ${RED}FAIL${NC} $agent — directory missing"
     ERRORS=$((ERRORS + 1))
+    continue
+  fi
+  agent_ok=true
+  for f in $REQUIRED_AGENT_FILES; do
+    if [ ! -f "$dir/$f" ]; then
+      echo -e "  ${RED}FAIL${NC} $agent — missing $f"
+      agent_ok=false
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+  if [ "$agent_ok" = true ]; then
+    echo -e "  ${GREEN}OK${NC} $agent"
   fi
 done
-
 echo ""
 
 # 3. Check for remaining placeholders
-echo "Checking for unfilled placeholders..."
+echo -e "${BOLD}🔍 3. Placeholders${NC}"
 PLACEHOLDER_COUNT=0
 for agent in "${TARGET_AGENTS[@]}"; do
-  if [ -d "agents/$agent" ]; then
-    count=$(grep -r '{{' "agents/$agent" --include="*.md" 2>/dev/null | wc -l | tr -d ' ')
+  if [ -d "$REPO_DIR/agents/$agent" ]; then
+    count=$(grep -r '{{[A-Z_]*}}' "$REPO_DIR/agents/$agent" --include="*.md" 2>/dev/null | wc -l | tr -d ' ')
     PLACEHOLDER_COUNT=$((PLACEHOLDER_COUNT + count))
   fi
 done
-REFERENCE_PLACEHOLDERS=$(grep -r '{{' references/ --include="*.md" 2>/dev/null | grep -v '.example' | wc -l | tr -d ' ')
-PLACEHOLDER_COUNT=$((PLACEHOLDER_COUNT + REFERENCE_PLACEHOLDERS))
 if [ "$PLACEHOLDER_COUNT" -gt 0 ]; then
-  echo -e "  ${YELLOW}WARN${NC} $PLACEHOLDER_COUNT unfilled placeholders found"
-  echo "    Run: grep -rn '{{' agents/ references/ --include='*.md' | head -10"
+  echo -e "  ${YELLOW}WARN${NC} $PLACEHOLDER_COUNT unfilled placeholders in agent files"
+  echo "    Run: grep -rn '{{' agents/ --include='*.md' | head -10"
   WARNINGS=$((WARNINGS + 1))
 else
-  echo -e "  ${GREEN}OK${NC} All placeholders filled"
+  echo -e "  ${GREEN}OK${NC} All agent placeholders filled"
 fi
 
-echo ""
-
-# 4. Check configs
-echo "Checking configs..."
-if ls configs/*.example 1>/dev/null 2>&1; then
-  CONFIG_COUNT=$(ls configs/*.example | wc -l | tr -d ' ')
-  echo -e "  ${GREEN}OK${NC} $CONFIG_COUNT config templates found"
-else
-  echo -e "  ${RED}FAIL${NC} No config templates in configs/"
-  ERRORS=$((ERRORS + 1))
-fi
-
-# 4b. Check generated configs for remaining placeholders
-if ls configs/generated/*.json 1>/dev/null 2>&1; then
-  GEN_PLACEHOLDERS=$(grep -rn '{{' configs/generated/ --include="*.json" 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$GEN_PLACEHOLDERS" -gt 0 ]; then
+# Check generated configs for placeholders
+if ls "$REPO_DIR/configs/generated/"*.json 1>/dev/null 2>&1; then
+  GEN_PLACEHOLDERS=$(grep -rn '{{' "$REPO_DIR/configs/generated/" --include="*.json" 2>/dev/null | wc -l | tr -d ' ')
+  if [ "${GEN_PLACEHOLDERS:-0}" -gt 0 ]; then
     echo -e "  ${YELLOW}WARN${NC} $GEN_PLACEHOLDERS placeholders in generated configs"
-    echo "    Run: grep -rn '{{' configs/generated/ --include='*.json' | head -10"
     WARNINGS=$((WARNINGS + 1))
   else
     echo -e "  ${GREEN}OK${NC} Generated configs clean"
   fi
-fi
 
-# 4c. Check generated configs have non-empty apiKeys
-if ls configs/generated/*.json 1>/dev/null 2>&1; then
-  for cfg in configs/generated/*.json; do
+  # Check empty API keys in generated configs
+  for cfg in "$REPO_DIR/configs/generated/"*.json; do
+    [ -f "$cfg" ] || continue
     empty_keys=$(grep -c '"[a-z]*": ""' "$cfg" 2>/dev/null || echo 0)
-    if [ "$empty_keys" -gt 0 ]; then
+    if [ "${empty_keys:-0}" -gt 0 ]; then
       echo -e "  ${YELLOW}WARN${NC} $(basename "$cfg"): $empty_keys empty API key(s)"
       WARNINGS=$((WARNINGS + 1))
     fi
   done
 fi
-
 echo ""
 
-# 5. Check scripts
-echo "Checking scripts..."
+# 4. Check configs
+echo -e "${BOLD}⚙️  4. Config templates${NC}"
+if ls "$REPO_DIR/configs/"*.example 1>/dev/null 2>&1; then
+  CONFIG_COUNT=$(ls "$REPO_DIR/configs/"*.example | wc -l | tr -d ' ')
+  echo -e "  ${GREEN}OK${NC} $CONFIG_COUNT config templates found"
+else
+  echo -e "  ${RED}FAIL${NC} No config templates in configs/"
+  ERRORS=$((ERRORS + 1))
+fi
+echo ""
+
+# 5. Check scripts syntax
+echo -e "${BOLD}📜 5. Script syntax${NC}"
 SCRIPT_ERRORS=0
-for f in scripts/*.sh; do
+for f in "$REPO_DIR/scripts/"*.sh; do
+  [ -f "$f" ] || continue
   if ! bash -n "$f" 2>/dev/null; then
-    echo -e "  ${RED}FAIL${NC} Syntax error: $f"
+    echo -e "  ${RED}FAIL${NC} Syntax error: $(basename "$f")"
     SCRIPT_ERRORS=$((SCRIPT_ERRORS + 1))
   fi
 done
@@ -156,68 +167,47 @@ if [ "$SCRIPT_ERRORS" -eq 0 ]; then
 else
   ERRORS=$((ERRORS + SCRIPT_ERRORS))
 fi
-
 echo ""
 
 # 6. Check OpenClaw
-echo "Checking OpenClaw..."
+echo -e "${BOLD}🔧 6. OpenClaw${NC}"
 if command -v openclaw >/dev/null 2>&1; then
   echo -e "  ${GREEN}OK${NC} OpenClaw installed ($(openclaw --version 2>/dev/null || echo 'version unknown'))"
 else
-  echo -e "  ${YELLOW}WARN${NC} OpenClaw not installed - install with: npm install -g openclaw"
+  echo -e "  ${YELLOW}WARN${NC} OpenClaw not installed — install with: npm install -g openclaw"
   WARNINGS=$((WARNINGS + 1))
 fi
-
 echo ""
 
 # 7. Check .env file
-echo "Checking .env..."
-if [ -f ".env" ]; then
+echo -e "${BOLD}🔐 7. Environment (.env)${NC}"
+if [ -f "$REPO_DIR/.env" ]; then
   echo -e "  ${GREEN}OK${NC} .env exists"
-  # Check for model configuration
-  if grep -q "^MAIN_MODEL=" .env 2>/dev/null; then
-    echo -e "  ${GREEN}OK${NC} MAIN_MODEL configured: $(grep '^MAIN_MODEL=' .env | cut -d= -f2)"
+
+  # Check permissions
+  env_perms=$(stat -c '%a' "$REPO_DIR/.env" 2>/dev/null || stat -f '%Lp' "$REPO_DIR/.env" 2>/dev/null || echo "unknown")
+  if [ "$env_perms" = "600" ]; then
+    echo -e "  ${GREEN}OK${NC} .env permissions: 600"
   else
-    echo -e "  ${YELLOW}WARN${NC} MAIN_MODEL not set in .env"
+    echo -e "  ${YELLOW}WARN${NC} .env permissions: $env_perms (recommended: 600)"
     WARNINGS=$((WARNINGS + 1))
   fi
-  if grep -q "^AGENT_MODEL=" .env 2>/dev/null; then
-    echo -e "  ${GREEN}OK${NC} AGENT_MODEL configured: $(grep '^AGENT_MODEL=' .env | cut -d= -f2)"
-  else
-    echo -e "  ${YELLOW}WARN${NC} AGENT_MODEL not set in .env"
-    WARNINGS=$((WARNINGS + 1))
-  fi
-else
-  echo -e "  ${YELLOW}WARN${NC} .env not found - run setup wizard or copy from .env.example"
-  WARNINGS=$((WARNINGS + 1))
-fi
 
-echo ""
+  # Source safely
+  set -a; . "$REPO_DIR/.env" 2>/dev/null || true; set +a
 
-# 8. Check voice transcription setup
-echo "Checking voice transcription..."
-if [ -f ".env" ] && grep -q "^GROQ_API_KEY=" .env 2>/dev/null; then
-  GROQ_KEY=$(grep '^GROQ_API_KEY=' .env | cut -d= -f2)
-  if [ -n "$GROQ_KEY" ] && [ "$GROQ_KEY" != "your-groq-key" ]; then
-    echo -e "  ${GREEN}OK${NC} Groq API configured"
-  else
-    echo -e "  ${YELLOW}INFO${NC} Groq API key placeholder (not configured)"
-  fi
-elif [ -f "$HOME/whisper.cpp/build/bin/whisper-cli" ]; then
-  echo -e "  ${GREEN}OK${NC} Local whisper.cpp found"
-else
-  echo -e "  ${YELLOW}INFO${NC} No voice transcription configured (Groq or whisper.cpp)"
-fi
+  # Check key env vars
+  for var in DEFAULT_PROVIDER DEFAULT_MODEL; do
+    val="${!var:-}"
+    if [ -n "$val" ]; then
+      echo -e "  ${GREEN}OK${NC} $var=$val"
+    else
+      echo -e "  ${YELLOW}WARN${NC} $var not set"
+      WARNINGS=$((WARNINGS + 1))
+    fi
+  done
 
-echo ""
-
-# 9. Validate API keys format
-echo "Validating API keys..."
-if [ -f ".env" ]; then
-  # Source .env safely
-  set -a; . .env 2>/dev/null || true; set +a
-
-  # Check Anthropic key format
+  # Validate API key formats
   if [ -n "${ANTHROPIC_API_KEY:-}" ] && [ "$ANTHROPIC_API_KEY" != "your-anthropic-key" ]; then
     if echo "$ANTHROPIC_API_KEY" | grep -qE '^sk-ant-'; then
       echo -e "  ${GREEN}OK${NC} Anthropic key format valid"
@@ -227,7 +217,6 @@ if [ -f ".env" ]; then
     fi
   fi
 
-  # Check OpenAI key format
   if [ -n "${OPENAI_API_KEY:-}" ] && [ "$OPENAI_API_KEY" != "your-openai-key" ]; then
     if echo "$OPENAI_API_KEY" | grep -qE '^sk-'; then
       echo -e "  ${GREEN}OK${NC} OpenAI key format valid"
@@ -237,7 +226,6 @@ if [ -f ".env" ]; then
     fi
   fi
 
-  # Check OpenRouter key format
   if [ -n "${OPENROUTER_API_KEY:-}" ] && [ "$OPENROUTER_API_KEY" != "your-openrouter-key" ]; then
     if echo "$OPENROUTER_API_KEY" | grep -qE '^sk-or-'; then
       echo -e "  ${GREEN}OK${NC} OpenRouter key format valid"
@@ -247,7 +235,6 @@ if [ -f ".env" ]; then
     fi
   fi
 
-  # Check Groq key format
   if [ -n "${GROQ_API_KEY:-}" ] && [ "$GROQ_API_KEY" != "your-groq-key" ]; then
     if echo "$GROQ_API_KEY" | grep -qE '^gsk_'; then
       echo -e "  ${GREEN}OK${NC} Groq key format valid"
@@ -257,52 +244,105 @@ if [ -f ".env" ]; then
     fi
   fi
 
-  # Check for placeholder values still present
-  PLACEHOLDER_KEYS=$(grep -E '^(ANTHROPIC|OPENAI|OPENROUTER|GOOGLE|DEEPSEEK|GROQ)_API_KEY=' .env 2>/dev/null | grep -cE '=your-|=sk-your|gsk-your' || echo 0)
-  if [ "$PLACEHOLDER_KEYS" -gt 0 ]; then
+  # Check for placeholder values
+  PLACEHOLDER_KEYS=$(grep -E '^(ANTHROPIC|OPENAI|OPENROUTER|GOOGLE|DEEPSEEK|GROQ)_API_KEY=' "$REPO_DIR/.env" 2>/dev/null | grep -cE '=your-|=sk-your|gsk-your' || echo 0)
+  if [ "${PLACEHOLDER_KEYS:-0}" -gt 0 ]; then
     echo -e "  ${YELLOW}WARN${NC} $PLACEHOLDER_KEYS API key(s) still have placeholder values"
     WARNINGS=$((WARNINGS + 1))
   fi
 else
-  echo -e "  ${YELLOW}SKIP${NC} No .env file to validate"
+  echo -e "  ${YELLOW}WARN${NC} .env not found — run: cp .env.example .env"
+  WARNINGS=$((WARNINGS + 1))
 fi
-
 echo ""
 
-# 10. Check skills symlink health
-echo "Checking skills installation..."
-OPENCLAW_BASE="${OPENCLAW_DIR:-$HOME/.openclaw}"
-if [ -d "$OPENCLAW_BASE/skills" ]; then
-  SKILL_COUNT_SHARED=$(ls "$OPENCLAW_BASE/skills/" 2>/dev/null | wc -l | tr -d ' ')
-  echo -e "  ${GREEN}OK${NC} Shared skills directory: $SKILL_COUNT_SHARED skills"
+# 8. Check installed workspaces (if any)
+echo -e "${BOLD}📂 8. Installed workspaces${NC}"
+if [ -d "$OPENCLAW_HOME/agents" ]; then
+  INSTALLED=$(ls "$OPENCLAW_HOME/agents/" 2>/dev/null | wc -l | tr -d ' ')
+  echo -e "  ${GREEN}OK${NC} $INSTALLED agents in $OPENCLAW_HOME/agents/"
+
+  # Check configs exist
+  for agent in "${TARGET_AGENTS[@]}"; do
+    if [ -f "$OPENCLAW_HOME/agents/$agent/openclaw.json" ]; then
+      echo -e "  ${GREEN}OK${NC} $agent config exists"
+    else
+      echo -e "  ${YELLOW}INFO${NC} $agent config not deployed yet"
+    fi
+  done
+
+  # Check gateway binding
+  for agent in "${TARGET_AGENTS[@]}"; do
+    config="$OPENCLAW_HOME/agents/$agent/openclaw.json"
+    [ -f "$config" ] || continue
+    gw_host=$(jq -r '.gateway.host // "0.0.0.0"' "$config" 2>/dev/null)
+    if [ "$gw_host" = "0.0.0.0" ]; then
+      echo -e "  ${RED}FAIL${NC} $agent: gateway bound to 0.0.0.0 (SECURITY RISK!)"
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+else
+  echo -e "  ${CYAN}INFO${NC} No workspaces deployed yet (run deploy-one-click.sh first)"
+fi
+echo ""
+
+# 9. Check skills
+echo -e "${BOLD}📚 9. Skills${NC}"
+SHARED_SKILLS="$OPENCLAW_HOME/shared-skills"
+if [ -d "$SHARED_SKILLS" ]; then
+  SKILL_COUNT=$(ls "$SHARED_SKILLS/" 2>/dev/null | wc -l | tr -d ' ')
+  echo -e "  ${GREEN}OK${NC} Shared skills: $SKILL_COUNT ($SHARED_SKILLS)"
+
+  # Check CHECKSUMS
+  if [ -f "$SHARED_SKILLS/CHECKSUMS.sha256" ]; then
+    echo -e "  ${GREEN}OK${NC} CHECKSUMS.sha256 exists"
+  fi
 
   # Check symlinks
   BROKEN_SYMLINKS=0
-  for agent_dir in "$OPENCLAW_BASE/agents"/*/agent/skills; do
-    if [ -L "$agent_dir" ] && [ ! -e "$agent_dir" ]; then
+  for agent in "${TARGET_AGENTS[@]}"; do
+    skills_link="$OPENCLAW_HOME/agents/$agent/skills"
+    if [ -L "$skills_link" ] && [ ! -e "$skills_link" ]; then
       BROKEN_SYMLINKS=$((BROKEN_SYMLINKS + 1))
+      echo -e "  ${RED}FAIL${NC} Broken symlink: $agent/skills"
     fi
   done
-  if [ "$BROKEN_SYMLINKS" -gt 0 ]; then
-    echo -e "  ${RED}FAIL${NC} $BROKEN_SYMLINKS broken skill symlinks"
-    ERRORS=$((ERRORS + 1))
+  if [ "$BROKEN_SYMLINKS" -eq 0 ]; then
+    echo -e "  ${GREEN}OK${NC} No broken symlinks"
+  else
+    ERRORS=$((ERRORS + BROKEN_SYMLINKS))
   fi
-elif [ -d "$OPENCLAW_BASE/agents/producer/agent/skills" ]; then
-  SKILL_COUNT_PROD=$(ls "$OPENCLAW_BASE/agents/producer/agent/skills/" 2>/dev/null | wc -l | tr -d ' ')
-  echo -e "  ${YELLOW}INFO${NC} Old-style skills in producer/: $SKILL_COUNT_PROD"
-  echo -e "    Consider running: bash scripts/setup-skills.sh"
 else
-  echo -e "  ${YELLOW}WARN${NC} No skills directory found"
-  WARNINGS=$((WARNINGS + 1))
+  echo -e "  ${CYAN}INFO${NC} Shared skills not deployed yet"
+fi
+echo ""
+
+# 10. Integrity baseline
+echo -e "${BOLD}🛡️  10. Security${NC}"
+if [ -f "$OPENCLAW_HOME/.integrity-baseline.sha256" ]; then
+  echo -e "  ${GREEN}OK${NC} Integrity baseline exists"
 fi
 
+# Check for API key leaks
+LEAKED=$(grep -rlE '(sk-ant-|sk-or-|sk-[a-zA-Z0-9]{32,}|gsk_)' "$REPO_DIR/agents/" --include="*.md" 2>/dev/null || true)
+if [ -n "$LEAKED" ]; then
+  echo -e "  ${RED}FAIL${NC} API keys found in .md files!"
+  echo "$LEAKED" | head -5
+  ERRORS=$((ERRORS + 1))
+else
+  echo -e "  ${GREEN}OK${NC} No API key leaks in agent files"
+fi
 echo ""
+
+# ── Summary ──
 echo "================================="
 if [ "$ERRORS" -eq 0 ] && [ "$WARNINGS" -eq 0 ]; then
-  echo -e "${GREEN}All checks passed!${NC}"
+  echo -e "${GREEN}${BOLD}All checks passed!${NC}"
+  exit 0
 elif [ "$ERRORS" -eq 0 ]; then
   echo -e "${YELLOW}Passed with $WARNINGS warning(s)${NC}"
+  exit 0
 else
-  echo -e "${RED}$ERRORS error(s), $WARNINGS warning(s)${NC}"
+  echo -e "${RED}${BOLD}$ERRORS error(s), $WARNINGS warning(s)${NC}"
   exit 1
 fi

@@ -1,12 +1,39 @@
 #!/bin/bash
-# OpenClaw Watchdog v3 — проверяет что Gateway жив + API токен валиден
+# OpenClaw Watchdog v4 — проверяет что Gateway жив + API токен валиден
 # Запускается через launchd/systemd каждые 2 минуты
-# v3: добавлена проверка 401 от Anthropic в логах OpenClaw
+# v4: все переменные из .env, убраны хардкоды
+set -euo pipefail
+
+# ── Загрузка .env (безопасно, без падения) ──
+OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
+SCRIPT_DIR_ENV="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR_ENV="$(dirname "$SCRIPT_DIR_ENV")"
+
+# Ищем .env: сначала в репо, потом в OPENCLAW_HOME
+ENV_FILE=""
+for candidate in "$REPO_DIR_ENV/.env" "$OPENCLAW_HOME/.env" "$HOME/.env"; do
+  if [ -f "$candidate" ]; then ENV_FILE="$candidate"; break; fi
+done
+
+if [ -n "$ENV_FILE" ]; then
+  set -a; . "$ENV_FILE" 2>/dev/null || true; set +a
+fi
+
+# ── Конфигурация из .env с дефолтами ──
+HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:${GATEWAY_PORT:-18789}/health}"
+TG_BOT_TOKEN="${HANK_BOT_TOKEN:-${TELEGRAM_BOT_TOKEN_HANK:-}}"
+TG_CHAT_ID="${HANK_CHAT_ID:-${OWNER_TELEGRAM_ID:-}}"
+LOG_FILE="$OPENCLAW_HOME/logs/watchdog.log"
+ERR_LOG="$OPENCLAW_HOME/logs/gateway.err.log"
+OPENCLAW_LOG="/tmp/openclaw/openclaw-$(date +%Y-%m-%d).log"
+AUTH_FAIL_FILE="/tmp/openclaw-auth-fail-count"
+MAX_RETRIES=3
+RETRY_DELAY=10
 
 # Cross-platform stat
-if [[ "$OSTYPE" == "darwin"* ]]; then
+if [[ "${OSTYPE:-}" == "darwin"* ]]; then
   file_mtime() { stat -f %m "$1" 2>/dev/null || echo 0; }
-  file_size() { stat -f%z "$1" 2>/dev/null || echo 0; }
+  file_size() { stat -f %z "$1" 2>/dev/null || echo 0; }
 else
   file_mtime() { stat -c %Y "$1" 2>/dev/null || echo 0; }
   file_size() { stat -c %s "$1" 2>/dev/null || echo 0; }
@@ -14,9 +41,9 @@ fi
 
 # Cross-platform gateway restart
 restart_gateway() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then
+  if [[ "${OSTYPE:-}" == "darwin"* ]]; then
     launchctl kickstart -k "gui/$(id -u)/ai.openclaw.gateway" 2>/dev/null || \
-    /opt/homebrew/bin/openclaw gateway start &>/dev/null &
+    openclaw gateway start &>/dev/null &
   elif command -v systemctl &>/dev/null; then
     systemctl --user restart openclaw-gateway 2>/dev/null || \
     openclaw gateway restart
@@ -25,19 +52,10 @@ restart_gateway() {
   fi
 }
 
-HEALTH_URL="http://127.0.0.1:18789/health"
-source $HOME/.openclaw/scripts/hank-watchdog.env
-TG_BOT_TOKEN="${HANK_BOT_TOKEN}"
-TG_CHAT_ID="${HANK_CHAT_ID}"
-LOG_FILE="$HOME/.openclaw/logs/watchdog.log"
-ERR_LOG="$HOME/.openclaw/logs/gateway.err.log"
-OPENCLAW_LOG="/tmp/openclaw/openclaw-$(date +%Y-%m-%d).log"
-AUTH_FAIL_FILE="/tmp/openclaw-auth-fail-count"
-MAX_RETRIES=3
-RETRY_DELAY=10
+mkdir -p "$(dirname "$LOG_FILE")"
 
 # Ротация лога (макс 1MB)
-if [ -f "$LOG_FILE" ] && [ $(file_size "$LOG_FILE") -gt 1048576 ]; then
+if [ -f "$LOG_FILE" ] && [ "$(file_size "$LOG_FILE")" -gt 1048576 ]; then
   tail -500 "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
 fi
 
@@ -46,15 +64,16 @@ log() {
 }
 
 send_telegram() {
+  [ -z "$TG_BOT_TOKEN" ] && return 0
   curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
     -d chat_id="$TG_CHAT_ID" \
     -d text="$1" \
-    -d parse_mode="HTML" > /dev/null 2>&1
+    -d parse_mode="HTML" > /dev/null 2>&1 || true
 }
 
 check_health() {
   local status
-  status=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$HEALTH_URL" 2>/dev/null)
+  status=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$HEALTH_URL" 2>/dev/null || echo "000")
   [ "$status" = "200" ]
 }
 
@@ -66,7 +85,7 @@ do_restart_gateway() {
   for i in $(seq 1 $MAX_RETRIES); do
     log "Restart attempt $i/$MAX_RETRIES"
     
-    pkill -f "openclaw.*gateway" 2>/dev/null
+    pkill -f "openclaw.*gateway" 2>/dev/null || true
     sleep 2
     
     restart_gateway
@@ -76,7 +95,6 @@ do_restart_gateway() {
     if check_health; then
       log "✅ Restarted successfully on attempt $i ($reason)"
       send_telegram "✅ <b>Хайзенберг перезапущен!</b> ($reason, попытка $i/$MAX_RETRIES)"
-      # Сбрасываем счётчик 401
       rm -f "$AUTH_FAIL_FILE"
       return 0
     fi
@@ -102,13 +120,9 @@ if check_health; then
     fi
   fi
   
-  # 3. Проверка 401 от Anthropic в логах (НОВОЕ в v3)
-  # Ищем свежие 401 ошибки за последние 5 минут
+  # 3. Проверка 401 от Anthropic в логах
   if [ -f "$OPENCLAW_LOG" ]; then
-    NOW_TS=$(date +%s)
-    # Считаем 401 ошибки в последних 50 строках лога
-    # Только ошибки за последние 5 минут (по временной метке в JSON логе)
-    FIVE_MIN_AGO=$(date -u -v-5M '+%Y-%m-%dT%H:%M' 2>/dev/null || date -u -d '5 minutes ago' '+%Y-%m-%dT%H:%M' 2>/dev/null)
+    FIVE_MIN_AGO=$(date -u -v-5M '+%Y-%m-%dT%H:%M' 2>/dev/null || date -u -d '5 minutes ago' '+%Y-%m-%dT%H:%M' 2>/dev/null || echo "")
     if [ -n "$FIVE_MIN_AGO" ]; then
       AUTH_ERRORS=$(python3 -c "
 import re, sys
@@ -128,22 +142,19 @@ print(count)
       AUTH_ERRORS=$(tail -20 "$OPENCLAW_LOG" | grep -c "HTTP 401\|authentication_error\|Invalid bearer token" 2>/dev/null; true)
     fi
     
-    if [ "$AUTH_ERRORS" -gt 0 ]; then
-      # Инкрементируем счётчик (чтобы не рестартить на единичную ошибку)
+    if [ "${AUTH_ERRORS:-0}" -gt 0 ]; then
       PREV_COUNT=$(cat "$AUTH_FAIL_FILE" 2>/dev/null || echo 0)
       NEW_COUNT=$((PREV_COUNT + 1))
       echo "$NEW_COUNT" > "$AUTH_FAIL_FILE"
       
       log "⚠️ Anthropic 401 errors detected ($AUTH_ERRORS in recent log). Consecutive checks: $NEW_COUNT"
       
-      # Если 2+ проверки подряд видят 401 (4+ минуты проблемы) - рестартим
       if [ "$NEW_COUNT" -ge 2 ]; then
         log "🔴 Persistent 401 errors ($NEW_COUNT checks). Restarting gateway..."
         send_telegram "🔴 <b>Хайзенберг: 401 от Anthropic!</b> Токен невалиден $NEW_COUNT проверок подряд. Перезапускаю..."
         do_restart_gateway "anthropic_401"
       fi
     else
-      # Нет 401 - сбрасываем счётчик
       rm -f "$AUTH_FAIL_FILE"
     fi
   fi
@@ -151,7 +162,7 @@ print(count)
   # 4. Проверка что Telegram polling жив (getMe)
   if [ -n "$TG_BOT_TOKEN" ]; then
     TG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 \
-      "https://api.telegram.org/bot${TG_BOT_TOKEN}/getMe" 2>/dev/null)
+      "https://api.telegram.org/bot${TG_BOT_TOKEN}/getMe" 2>/dev/null || echo "000")
     if [ "$TG_STATUS" != "200" ]; then
       log "⚠️ Telegram Bot API unreachable (HTTP $TG_STATUS)"
     fi

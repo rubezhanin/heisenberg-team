@@ -207,16 +207,16 @@ heisenberg-team/
 ├── references/      # Team constitution, standards
 ├── examples/        # Cookbooks and guides
 ├── docs/            # Architecture, FAQ
-├── install.sh       # Universal installer (single entry point)
+├── deploy-one-click.sh  # 🆕 One-click deployment (main entry point)
+├── install.sh       # Thin wrapper for curl | bash
 └── IMPROVEMENTS.md  # Full changelog of all changes
 ```
 
-### 🤖 Deploy Full Team
-
-Want all 9 agents working together? See the [Multi-Agent Deployment Guide](docs/deploy-agents.md).
+### Deploy Full Team
 
 ```bash
-bash install.sh    # One command does everything
+bash deploy-one-click.sh    # One-click: install deps, configure, deploy, test
+bash install.sh             # Same (works from curl | bash)
 ```
 
 ## Examples

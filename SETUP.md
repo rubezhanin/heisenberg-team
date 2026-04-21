@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) v18+
+- [Node.js](https://nodejs.org/) v20+
 - [OpenClaw](https://github.com/openclaw/openclaw) installed (`npm install -g openclaw`)
 - API key for at least one LLM provider (Anthropic, OpenAI, Google, etc.)
 - Telegram bot token (recommended for notifications — create via [@BotFather](https://t.me/BotFather))
@@ -42,65 +42,74 @@ One command installs everything — dependencies, OpenClaw, agents, configs:
 ```bash
 git clone https://github.com/YOUR_USERNAME/heisenberg-team.git
 cd heisenberg-team
-bash install.sh
+bash deploy-one-click.sh
 ```
 
 For non-interactive/VPS deployment:
 
 ```bash
-OPENCLAW_NONINTERACTIVE=1 bash install.sh --yes
+cp .env.example .env
+# Fill in .env with your values
+bash deploy-one-click.sh --yes
 ```
 
 For selected agents only:
 
 ```bash
-bash install.sh --agents heisenberg,saul,walter
+bash deploy-one-click.sh --agents heisenberg,saul,walter
+```
+
+### curl | bash (one-liner)
+
+```bash
+HEISENBERG_REPO=https://github.com/YOU/heisenberg-team.git bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOU/heisenberg-team/main/install.sh)"
 ```
 
 ## Common Deployment Modes
 
-### 1) Full team
+### 1) Full team (interactive wizard)
 
 ```bash
-bash scripts/setup.sh
-bash scripts/smoke-test.sh
+bash deploy-one-click.sh
 ```
 
-### 2) Selected agents only
+### 2) Non-interactive (from .env)
 
 ```bash
-bash scripts/setup.sh --agents heisenberg,saul,walter
-bash scripts/smoke-test.sh --agents heisenberg,saul,walter
+cp .env.example .env
+# Edit .env
+bash deploy-one-click.sh --yes
 ```
 
-### 3) Attach to an existing OpenClaw install
-
-Use this when you already have `~/.openclaw` and want to add Heisenberg Team agents without pretending it is a fresh machine:
+### 3) Selected agents only
 
 ```bash
-bash scripts/setup.sh --attach-existing --agents heisenberg,walter
+bash deploy-one-click.sh --agents heisenberg,saul,walter
 ```
 
-Then prepare configs from `configs/*.example` or `configs/generated/`, and merge `remoteAgents` from the example configs into your existing OpenClaw setup.
+### 4) Attach to an existing OpenClaw install
 
-### 4) Custom names
+Use this when you already have `~/.openclaw` and want to add Heisenberg Team agents:
 
-Character branding can stay exactly as-is. The setup wizard now asks for per-agent display names and writes them into generated configs. If you also want the markdown persona files to match perfectly, update `IDENTITY.md` and `SOUL.md` after generation.
+```bash
+bash deploy-one-click.sh --attach-existing --agents heisenberg,walter
+```
 
-### 5) Add your own agents
+### 5) Dry run (preview only)
 
-Use [examples/add-new-agent.md](examples/add-new-agent.md) as the template for custom specialists. The current wizard supports the built-in team best; custom agents are added by creating a new agent directory and config template, then including them in your rollout.
+```bash
+bash deploy-one-click.sh --dry-run
+```
 
-The wizard will:
-1. Check prerequisites
-2. Let you choose which built-in agents to install
-3. Ask for your name, team directory, and other settings
-4. Collect per-agent Telegram bot tokens and display names
-5. Generate local configs in `configs/generated/`
-6. Install agents and skills to `~/.openclaw/agents/`
-7. Verify the installation
+### 6) Legacy scripts (still supported)
 
-After the wizard, create the workspace and start:
+All legacy scripts (`scripts/setup.sh`, `scripts/deploy-team.sh`, `scripts/bootstrap-install.sh`) are now wrappers that delegate to `deploy-one-click.sh`:
+
+```bash
+bash scripts/setup.sh             # → deploy-one-click.sh
+bash scripts/deploy-team.sh       # → deploy-one-click.sh
+bash scripts/bootstrap-install.sh # → deploy-one-click.sh --attach-existing
+```
 
 ```bash
 bash scripts/init-workspace.sh  # Create directories for all agents
@@ -173,23 +182,14 @@ These placeholders appear in individual agent files and are optional:
 
 > 💡 The `setup-wizard.sh` handles the core placeholders automatically. These additional ones can be set manually as needed.
 
-### Step 4: Install Agents and Skills
+### Step 4: Deploy
 
 ```bash
+# One-click (рекомендуется — делает шаги 1-4 автоматически):
+bash deploy-one-click.sh
+
+# Или вручную через обёртку:
 bash scripts/setup.sh
-```
-
-Optional modes:
-
-```bash
-# Only install selected agents
-bash scripts/setup.sh --agents heisenberg,saul,walter
-
-# Attach to an existing ~/.openclaw install
-bash scripts/setup.sh --attach-existing --agents heisenberg,walter
-
-# Skip shared skills copy
-bash scripts/setup.sh --no-skills --agents heisenberg
 ```
 
 ### Step 5: Start and Verify
@@ -241,9 +241,9 @@ Edit `references/team-constitution.md` to change delegation rules and workflows.
 
 | Problem | Solution |
 |---------|----------|
-| Setup wizard fails | Check Node.js v18+ and OpenClaw installed |
+| Setup wizard fails | Check Node.js v20+ and OpenClaw installed |
 | Agent not responding | Check `openclaw status`, verify `~/.openclaw/agents/<name>/openclaw.json`, then inspect logs. Restart the shared gateway from your shell only if needed. |
-| Skills not loading | Check `ls ~/.openclaw/agents/producer/agent/skills/` |
+| Skills not loading | Check `ls ~/.openclaw/shared-skills/` or `ls ~/.openclaw/agents/<name>/skills/` |
 | Telegram not working | Verify `OWNER_TELEGRAM_ID` is set (digits only) |
 | Remaining `{{PLACEHOLDER}}` | Run `grep -rn '{{' . --include='*.md'` to find them |
 | No response after message | Check gateway logs, verify bot token is correct |
@@ -261,8 +261,8 @@ Edit `references/team-constitution.md` to change delegation rules and workflows.
 
 This repository contains a full team of 9 AI agents. To deploy the complete team:
 
-1. See [Deploy Agents Guide](docs/deploy-agents.md) for step-by-step instructions
-2. Use `scripts/deploy-team.sh` for automated workspace setup
-3. Config examples are in `configs/`
+1. Run `bash deploy-one-click.sh` (one-click, all 9 agents)
+2. Config examples are in `configs/`
+3. See [Deploy Agents Guide](docs/deploy-agents.md) for detailed instructions
 
-> 💡 **Start small:** Deploy Heisenberg first, add other agents as needed.
+> 💡 **Start small:** `bash deploy-one-click.sh --agents heisenberg,saul,walter` for 3 agents.

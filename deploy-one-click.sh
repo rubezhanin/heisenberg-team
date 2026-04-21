@@ -19,6 +19,7 @@ readonly MIN_NODE_VERSION="20"
 readonly MIN_OPENCLAW_VERSION="2026.4.12"
 readonly DEFAULT_GATEWAY_PORT="18789"
 readonly OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
+readonly WORKSPACE_PATH="${WORKSPACE_PATH:-$HOME/workspace}"
 readonly BACKUP_DIR="$OPENCLAW_HOME/backups"
 
 # ── Цвета ───────────────────────────────────────────────────────────────────
@@ -710,6 +711,17 @@ GATEWAY_HOST=${GATEWAY_HOST}
 GATEWAY_PORT=${GATEWAY_PORT}
 OPENCLAW_VERSION=${OPENCLAW_VERSION:-$MIN_OPENCLAW_VERSION}
 
+# === Watchdog / Self-Heal ===
+HEALTH_URL=http://${GATEWAY_HOST}:${GATEWAY_PORT}/health
+HANK_BOT_TOKEN=${HANK_BOT_TOKEN:-}
+HANK_CHAT_ID=${HANK_CHAT_ID:-${OWNER_TELEGRAM_ID:-}}
+HEALTH_CHECK_INTERVAL=120
+SELF_HEAL_INTERVAL=1800
+
+# === Пути ===
+OPENCLAW_HOME=${OPENCLAW_HOME}
+WORKSPACE_PATH=${WORKSPACE_PATH:-$HOME/workspace}
+
 # === Опции ===
 AGENTS=$(IFS=,; echo "${SELECTED_AGENTS[*]}")
 MAX_COST_PER_DAY=${MAX_COST_PER_DAY}
@@ -1190,7 +1202,7 @@ PLIST
 }
 
 # ============================================================================
-# ФАЗА 10: SMOKE TEST + ОТЧЁТ
+# ФАЗА 10: SMOKE TEST + ОТЧЁТ (мерж smoke-test.sh)
 # ============================================================================
 
 phase_10_smoke_test() {
@@ -1204,6 +1216,7 @@ phase_10_smoke_test() {
 
   local tests_passed=0
   local tests_failed=0
+  local tests_warn=0
 
   # ── Test 1: openclaw в PATH ──
   if command -v openclaw &>/dev/null; then
@@ -1220,10 +1233,34 @@ phase_10_smoke_test() {
     ((tests_passed++))
   else
     log_warn "⚠ openclaw doctor — есть замечания"
-    ((tests_passed++)) # Не фатально
+    ((tests_warn++))
   fi
 
-  # ── Test 3: Конфиги существуют ──
+  # ── Test 3: Файлы агентов существуют ──
+  local required_files="AGENTS.md SOUL.md IDENTITY.md TOOLS.md MEMORY.md BOOTSTRAP.md HEARTBEAT.md"
+  local agent_files_ok=true
+  for agent in "${SELECTED_AGENTS[@]}"; do
+    local agent_dir="$SCRIPT_DIR/agents/$agent"
+    if [[ ! -d "$agent_dir" ]]; then
+      log_error "✗ Каталог агента отсутствует: $agent"
+      agent_files_ok=false
+      ((tests_failed++))
+      continue
+    fi
+    for f in $required_files; do
+      if [[ ! -f "$agent_dir/$f" ]]; then
+        log_error "✗ $agent: отсутствует $f"
+        agent_files_ok=false
+        ((tests_failed++))
+      fi
+    done
+  done
+  if [[ "$agent_files_ok" == true ]]; then
+    log_ok "✓ Файлы всех агентов на месте"
+    ((tests_passed++))
+  fi
+
+  # ── Test 4: Конфиги существуют ──
   local configs_ok=true
   for agent in "${SELECTED_AGENTS[@]}"; do
     local config="$OPENCLAW_HOME/agents/$agent/openclaw.json"
@@ -1238,7 +1275,31 @@ phase_10_smoke_test() {
     ((tests_passed++))
   fi
 
-  # ── Test 4: Skills симлинки ──
+  # ── Test 5: Плейсхолдеры в конфигах ──
+  if ls "$SCRIPT_DIR/configs/generated/"*.json &>/dev/null 2>&1; then
+    local gen_placeholders
+    gen_placeholders="$(grep -rn '{{' "$SCRIPT_DIR/configs/generated/" --include="*.json" 2>/dev/null | wc -l | tr -d ' ')"
+    if [[ "${gen_placeholders:-0}" -gt 0 ]]; then
+      log_warn "⚠ $gen_placeholders плейсхолдеров в сгенерированных конфигах"
+      ((tests_warn++))
+    else
+      log_ok "✓ Сгенерированные конфиги чисты"
+      ((tests_passed++))
+    fi
+
+    # Проверка пустых API ключей в конфигах
+    for cfg in "$SCRIPT_DIR/configs/generated/"*.json; do
+      [[ -f "$cfg" ]] || continue
+      local empty_keys
+      empty_keys="$(grep -c '"[a-z]*": ""' "$cfg" 2>/dev/null || echo 0)"
+      if [[ "${empty_keys:-0}" -gt 0 ]]; then
+        log_warn "⚠ $(basename "$cfg"): $empty_keys пустых API ключей"
+        ((tests_warn++))
+      fi
+    done
+  fi
+
+  # ── Test 6: Skills симлинки ──
   local skills_ok=true
   for agent in "${SELECTED_AGENTS[@]}"; do
     local skills_link="$OPENCLAW_HOME/agents/$agent/skills"
@@ -1250,14 +1311,26 @@ phase_10_smoke_test() {
         skills_ok=false
         ((tests_failed++))
       fi
+    elif [[ -d "$skills_link" ]]; then
+      log_warn "⚠ $agent/skills — не симлинк (устаревший подход)"
+      ((tests_warn++))
     fi
   done
-  if [[ "$skills_ok" == true ]]; then
+
+  # Проверка shared skills
+  local shared_skills_dir="$OPENCLAW_HOME/shared-skills"
+  if [[ -d "$shared_skills_dir" ]]; then
+    local skill_count
+    skill_count="$(ls "$shared_skills_dir/" 2>/dev/null | wc -l | tr -d ' ')"
+    log_ok "✓ Shared skills: $skill_count ($shared_skills_dir)"
+    ((tests_passed++))
+  elif [[ "$skills_ok" == true ]]; then
     log_ok "✓ Skills симлинки — OK"
     ((tests_passed++))
   fi
 
-  # ── Test 5: Security — gateway привязан к localhost ──
+  # ── Test 7: Security — gateway привязан к localhost ──
+  local gw_all_ok=true
   for agent in "${SELECTED_AGENTS[@]}"; do
     local config="$OPENCLAW_HOME/agents/$agent/openclaw.json"
     if [[ -f "$config" ]]; then
@@ -1265,14 +1338,17 @@ phase_10_smoke_test() {
       gw_host="$(jq -r '.gateway.host // "0.0.0.0"' "$config" 2>/dev/null)"
       if [[ "$gw_host" == "0.0.0.0" ]]; then
         log_error "✗ ОПАСНО: $agent gateway привязан к 0.0.0.0!"
+        gw_all_ok=false
         ((tests_failed++))
       fi
     fi
   done
-  log_ok "✓ Gateway привязан к $GATEWAY_HOST"
-  ((tests_passed++))
+  if [[ "$gw_all_ok" == true ]]; then
+    log_ok "✓ Gateway привязан к $GATEWAY_HOST"
+    ((tests_passed++))
+  fi
 
-  # ── Test 6: Нет API ключей в .md файлах ──
+  # ── Test 8: Нет API ключей в .md файлах ──
   local leaked_keys
   leaked_keys="$(grep -rlE '(sk-ant-|sk-or-|sk-[a-zA-Z0-9]{32,}|gsk_)' "$OPENCLAW_HOME/agents/" --include="*.md" 2>/dev/null || true)"
   if [[ -n "$leaked_keys" ]]; then
@@ -1284,13 +1360,31 @@ phase_10_smoke_test() {
     ((tests_passed++))
   fi
 
-  # ── Test 7: Integrity baseline ──
+  # ── Test 9: Плейсхолдеры в .md файлах агентов ──
+  local placeholder_count=0
+  for agent in "${SELECTED_AGENTS[@]}"; do
+    local agent_dir="$SCRIPT_DIR/agents/$agent"
+    if [[ -d "$agent_dir" ]]; then
+      local count
+      count="$(grep -r '{{[A-Z_]*}}' "$agent_dir" --include="*.md" 2>/dev/null | wc -l | tr -d ' ')"
+      placeholder_count=$((placeholder_count + count))
+    fi
+  done
+  if [[ "$placeholder_count" -gt 0 ]]; then
+    log_warn "⚠ $placeholder_count незаполненных плейсхолдеров в агентах"
+    ((tests_warn++))
+  else
+    log_ok "✓ Все плейсхолдеры заполнены"
+    ((tests_passed++))
+  fi
+
+  # ── Test 10: Integrity baseline ──
   if [[ -f "$OPENCLAW_HOME/.integrity-baseline.sha256" ]]; then
     log_ok "✓ Integrity baseline создан"
     ((tests_passed++))
   fi
 
-  # ── Test 8: .env защищён ──
+  # ── Test 11: .env защищён ──
   if [[ -f "$SCRIPT_DIR/.env" ]]; then
     local env_perms
     env_perms="$(stat -c '%a' "$SCRIPT_DIR/.env" 2>/dev/null || stat -f '%Lp' "$SCRIPT_DIR/.env" 2>/dev/null || echo "unknown")"
@@ -1299,11 +1393,73 @@ phase_10_smoke_test() {
       ((tests_passed++))
     else
       log_warn "⚠ .env имеет права $env_perms (рекомендуется 600)"
+      ((tests_warn++))
     fi
   fi
 
+  # ── Test 12: .env переменные ──
+  if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    set -a; . "$SCRIPT_DIR/.env" 2>/dev/null || true; set +a
+    for var in DEFAULT_PROVIDER DEFAULT_MODEL; do
+      if [[ -z "${!var:-}" ]]; then
+        log_warn "⚠ .env: $var не задана"
+        ((tests_warn++))
+      fi
+    done
+
+    # Валидация формата ключей
+    if [[ -n "${ANTHROPIC_API_KEY:-}" && "$ANTHROPIC_API_KEY" != "your-anthropic-key" ]]; then
+      if [[ ! "$ANTHROPIC_API_KEY" =~ ^sk-ant- ]]; then
+        log_warn "⚠ Anthropic key: необычный формат (ожидается sk-ant-...)"
+        ((tests_warn++))
+      fi
+    fi
+    if [[ -n "${OPENAI_API_KEY:-}" && "$OPENAI_API_KEY" != "your-openai-key" ]]; then
+      if [[ ! "$OPENAI_API_KEY" =~ ^sk- ]]; then
+        log_warn "⚠ OpenAI key: необычный формат (ожидается sk-...)"
+        ((tests_warn++))
+      fi
+    fi
+    if [[ -n "${OPENROUTER_API_KEY:-}" && "$OPENROUTER_API_KEY" != "your-openrouter-key" ]]; then
+      if [[ ! "$OPENROUTER_API_KEY" =~ ^sk-or- ]]; then
+        log_warn "⚠ OpenRouter key: необычный формат (ожидается sk-or-...)"
+        ((tests_warn++))
+      fi
+    fi
+    if [[ -n "${GROQ_API_KEY:-}" && "$GROQ_API_KEY" != "your-groq-key" ]]; then
+      if [[ ! "$GROQ_API_KEY" =~ ^gsk_ ]]; then
+        log_warn "⚠ Groq key: необычный формат (ожидается gsk_...)"
+        ((tests_warn++))
+      fi
+    fi
+
+    # Проверка плейсхолдерных значений
+    local placeholder_keys
+    placeholder_keys="$(grep -E '^(ANTHROPIC|OPENAI|OPENROUTER|GOOGLE|DEEPSEEK|GROQ)_API_KEY=' "$SCRIPT_DIR/.env" 2>/dev/null | grep -cE '=your-|=sk-your|gsk-your' || echo 0)"
+    if [[ "${placeholder_keys:-0}" -gt 0 ]]; then
+      log_warn "⚠ $placeholder_keys API ключей с placeholder-значениями"
+      ((tests_warn++))
+    fi
+  fi
+
+  # ── Test 13: Синтаксис скриптов ──
+  local script_errors=0
+  for f in "$SCRIPT_DIR/scripts/"*.sh; do
+    [[ -f "$f" ]] || continue
+    if ! bash -n "$f" 2>/dev/null; then
+      log_error "✗ Синтаксическая ошибка: $(basename "$f")"
+      ((script_errors++))
+    fi
+  done
+  if [[ "$script_errors" -eq 0 ]]; then
+    log_ok "✓ Все скрипты прошли синтаксическую проверку"
+    ((tests_passed++))
+  else
+    ((tests_failed += script_errors))
+  fi
+
   echo ""
-  echo -e "  Результат: ${GREEN}${tests_passed} passed${NC}, ${RED}${tests_failed} failed${NC}"
+  echo -e "  Результат: ${GREEN}${tests_passed} passed${NC}, ${YELLOW}${tests_warn} warnings${NC}, ${RED}${tests_failed} failed${NC}"
 
   print_report
 }

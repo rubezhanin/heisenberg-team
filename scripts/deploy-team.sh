@@ -1,186 +1,22 @@
 #!/bin/bash
-# deploy-team.sh — Deploy the Heisenberg Team
-# Creates workspace directories and copies agent files
+# scripts/deploy-team.sh — Deploy the Heisenberg Team (wrapper)
+# Обёртка для обратной совместимости. Делегирует в deploy-one-click.sh.
 #
-# Usage:
-#   bash scripts/deploy-team.sh           # Create workspaces (skip existing)
-#   bash scripts/deploy-team.sh --force   # Overwrite existing workspaces
-#   OPENCLAW_AGENTS_DIR=/custom/path bash scripts/deploy-team.sh
-
+# Usage (все аргументы передаются в deploy-one-click.sh):
+#   bash scripts/deploy-team.sh                       # Интерактивный визард
+#   bash scripts/deploy-team.sh --yes                 # Non-interactive (из .env)
+#   bash scripts/deploy-team.sh --agents heisenberg   # Частичное развёртывание
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_DIR="$(dirname "$SCRIPT_DIR")"
+ENTRY_POINT="$REPO_DIR/deploy-one-click.sh"
 
-AGENTS_DIR="$REPO_DIR/agents"
-REFS_DIR="$REPO_DIR/references"
-SCRIPTS_DIR="$REPO_DIR/scripts"
-CONFIGS_DIR="$REPO_DIR/configs"
-
-BASE_DIR="${OPENCLAW_AGENTS_DIR:-$HOME/openclaw-agents}"
-FORCE=false
-
-# Parse args
-for arg in "$@"; do
-  case $arg in
-    --force) FORCE=true ;;
-    --help|-h)
-      echo "Usage: $0 [--force]"
-      echo "  --force   Overwrite existing agent workspaces"
-      echo ""
-      echo "Environment:"
-      echo "  OPENCLAW_AGENTS_DIR   Base directory for agent workspaces (default: ~/openclaw-agents)"
-      exit 0
-      ;;
-  esac
-done
-
-echo "🧪 Heisenberg Team Deployment"
-echo "================================"
-echo "Repo:           $REPO_DIR"
-echo "Base directory: $BASE_DIR"
-echo "Force:          $FORCE"
-echo ""
-
-# List of agents
-AGENTS=("heisenberg" "saul" "walter" "jesse" "skyler" "hank" "gus" "twins")
-
-# ── Workspaces ──────────────────────────────────────────────────────────────
-for agent in "${AGENTS[@]}"; do
-  AGENT_DIR="$BASE_DIR/$agent"
-
-  if [ -d "$AGENT_DIR" ] && [ "$FORCE" = false ]; then
-    echo "⚠️  $agent: directory exists, skipping (use --force to overwrite)"
-    continue
-  fi
-
-  echo "📁 Creating workspace for $agent..."
-  mkdir -p "$AGENT_DIR"
-  mkdir -p "$AGENT_DIR/memory"
-  mkdir -p "$AGENT_DIR/memory/core"
-  mkdir -p "$AGENT_DIR/memory/decisions"
-  mkdir -p "$AGENT_DIR/memory/archive"
-  mkdir -p "$AGENT_DIR/references"
-  mkdir -p "$AGENT_DIR/scripts"
-
-  # Copy agent markdown files to workspace root
-  if [ -d "$AGENTS_DIR/$agent" ]; then
-    cp "$AGENTS_DIR/$agent/"*.md "$AGENT_DIR/" 2>/dev/null || true
-    echo "  ✓ Copied agent files from agents/$agent/"
-  else
-    echo "  ⚠ No agent directory found at agents/$agent/ — skipping file copy"
-  fi
-
-  echo "✅ $agent workspace created at $AGENT_DIR"
-done
-
-# ── Shared references ────────────────────────────────────────────────────────
-echo ""
-echo "📋 Copying shared references..."
-for agent in "${AGENTS[@]}"; do
-  AGENT_DIR="$BASE_DIR/$agent"
-  [ -d "$AGENT_DIR/references" ] || mkdir -p "$AGENT_DIR/references"
-
-  if [ -f "$REFS_DIR/team-constitution.md" ]; then
-    cp "$REFS_DIR/team-constitution.md" "$AGENT_DIR/references/"
-  fi
-
-  if [ -f "$REFS_DIR/team-board.md.example" ]; then
-    cp "$REFS_DIR/team-board.md.example" "$AGENT_DIR/references/team-board.md"
-  elif [ -f "$REFS_DIR/team-board.md" ]; then
-    cp "$REFS_DIR/team-board.md" "$AGENT_DIR/references/"
-  fi
-done
-echo "  ✓ References copied"
-
-# ── Skills (shared directory + symlinks) ────────────────────────────────────────
-echo ""
-echo "📚 Setting up skills (shared directory)..."
-SHARED_SKILLS="${OPENCLAW_BASE:-$HOME/.openclaw}/skills"
-if [ -d "$REPO_DIR/skills" ]; then
-  mkdir -p "$SHARED_SKILLS"
-  SKILL_OK=0
-  for skill_dir in "$REPO_DIR/skills"/*/; do
-    [ -d "$skill_dir" ] || continue
-    skill_name=$(basename "$skill_dir")
-    if cp -r "$skill_dir" "$SHARED_SKILLS/" 2>/dev/null; then
-      SKILL_OK=$((SKILL_OK + 1))
-    fi
-  done
-  echo "  ✓ $SKILL_OK skills installed to $SHARED_SKILLS"
-
-  # Create symlinks for each agent
-  for agent in "${AGENTS[@]}"; do
-    AGENT_DIR="$BASE_DIR/$agent"
-    skills_link="$AGENT_DIR/skills"
-    if [ -L "$skills_link" ]; then
-      rm -f "$skills_link"
-    elif [ -e "$skills_link" ]; then
-      rm -rf "$skills_link"
-    fi
-    ln -s "$SHARED_SKILLS" "$skills_link"
-  done
-  echo "  ✓ Symlinks created for all agents"
-else
-  echo "  ⚠ Skills directory not found at $REPO_DIR/skills"
+if [ ! -f "$ENTRY_POINT" ]; then
+  echo "ERROR: deploy-one-click.sh not found at $ENTRY_POINT"
+  echo "Make sure you are running from the heisenberg-team repository."
+  exit 1
 fi
 
-# ── Shared scripts ───────────────────────────────────────────────────────────
-echo ""
-echo "📜 Copying scripts..."
-SHARED_SCRIPTS=("self-heal.sh" "trash-agent-session.sh" "agent-health-check.sh")
-for agent in "${AGENTS[@]}"; do
-  AGENT_DIR="$BASE_DIR/$agent"
-  [ -d "$AGENT_DIR/scripts" ] || mkdir -p "$AGENT_DIR/scripts"
-
-  for script in "${SHARED_SCRIPTS[@]}"; do
-    if [ -f "$SCRIPTS_DIR/$script" ]; then
-      cp "$SCRIPTS_DIR/$script" "$AGENT_DIR/scripts/"
-      chmod +x "$AGENT_DIR/scripts/$script"
-    fi
-  done
-done
-echo "  ✓ Scripts copied"
-
-# ── Config examples ──────────────────────────────────────────────────────────
-echo "⚙️  Copying config examples..."
-for agent in "${AGENTS[@]}"; do
-  AGENT_DIR="$BASE_DIR/$agent"
-  EXAMPLE="$CONFIGS_DIR/$agent.openclaw.json.example"
-
-  if [ -f "$EXAMPLE" ]; then
-    cp "$EXAMPLE" "$AGENT_DIR/openclaw.json.example"
-    echo "  ✓ $agent config example copied"
-  else
-    echo "  ⚠ No config example found for $agent at $EXAMPLE"
-  fi
-done
-
-# ── Summary ──────────────────────────────────────────────────────────────────
-echo ""
-echo "================================"
-echo "✅ All workspaces created!"
-echo ""
-echo "Next steps:"
-echo ""
-echo "1. Create Telegram bots via @BotFather (one per agent)"
-echo "   See docs/deploy-agents.md for bot names"
-echo ""
-echo "2. Configure each agent:"
-echo "   For each agent in: heisenberg saul walter jesse skyler hank gus twins"
-echo "   ┌──────────────────────────────────────────────────────────────────┐"
-echo "   │  mkdir -p ~/.openclaw/agents/<agent>                            │"
-echo "   │  cp $BASE_DIR/<agent>/openclaw.json.example \\                  │"
-echo "   │     ~/.openclaw/agents/<agent>/openclaw.json                   │"
-echo "   │  # Edit: replace API keys (ANTHROPIC, OPENAI, OPENROUTER, etc) │"
-echo "   │  # Edit: replace {{TELEGRAM_BOT_TOKEN}}, {{OWNER_TELEGRAM_ID}} │"
-echo "   └──────────────────────────────────────────────────────────────────┘"
-echo ""
-echo "3. Start agents:"
-echo "   bash $SCRIPT_DIR/start-team.sh"
-echo "   # Or start individually:"
-echo "   cd $BASE_DIR/heisenberg && openclaw gateway start"
-echo ""
-echo "4. Verify (message Heisenberg in Telegram): 'Hello, are you there?'"
-echo ""
-echo "See docs/deploy-agents.md for the full guide."
+echo "ℹ️  deploy-team.sh → делегирую в deploy-one-click.sh"
+exec bash "$ENTRY_POINT" "$@"
