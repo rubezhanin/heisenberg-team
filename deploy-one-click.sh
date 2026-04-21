@@ -1038,14 +1038,14 @@ phase_8_security_hardening() {
   log_ok "Integrity baseline: $(wc -l < "$integrity_file") файлов"
 
   # ── openclaw security audit (если доступна, с таймаутом) ──
-  if command -v openclaw &>/dev/null; then
-    log_substep "Проверка openclaw security audit..."
-    if command -v timeout &>/dev/null; then
-      timeout 10 openclaw security audit &>/dev/null || log_warn "openclaw security audit недоступен или таймаут"
-    else
-      log_warn "timeout не найден, пропускаю security audit"
+    if command -v openclaw &>/dev/null; then
+      log_substep "Проверка openclaw security audit..."
+      if command -v timeout &>/dev/null; then
+        timeout 10 openclaw security audit </dev/null &>/dev/null || log_warn "openclaw security audit недоступен или таймаут"
+      else
+        log_warn "timeout не найден, пропускаю security audit"
+      fi
     fi
-  fi
 }
 
 install_precommit_hook() {
